@@ -86,7 +86,8 @@ const inlineRules: Array<{ kind: PiiKind; pattern: RegExp }> = [
   { kind: "government_id", pattern: /(?<!\d)\d{4}[\s-]?\d{4}[\s-]?\d{4}(?![\d\s-]*\d)/g },
   { kind: "government_id", pattern: /\b[A-Z]{5}\d{4}[A-Z]\b/g },
   { kind: "account_number", pattern: /(?<!\d)\d{9,18}(?!\d)/g },
-  { kind: "token", pattern: /\b(?:Bearer\s+)?(?:sk|pk|api)[_-][A-Za-z0-9_-]{16,}\b/g }
+  // Catch full tokens as well as intentionally truncated dashboard representations.
+  { kind: "token", pattern: /\b(?:Bearer\s+)?(?:sk|pk|api)[_-][A-Za-z0-9._-]{6,}\b/g }
 ];
 
 function unique<T>(values: T[]): T[] {

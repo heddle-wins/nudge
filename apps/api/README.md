@@ -1,0 +1,33 @@
+# Nudge reasoning API
+
+The reasoning API accepts only Nudge's sanitized context and returns one schema-validated action proposal. It is stateless and deliberately does not log request bodies, prompts, or provider responses.
+
+## Run locally
+
+`apps/api/.env` defaults to the deterministic `mock` provider, so no API key is needed.
+
+```bash
+cd apps/api
+python3 -m venv .venv
+. .venv/bin/activate
+python -m pip install -e ".[dev]"
+uvicorn app.main:app --reload --port 8000
+```
+
+Then open `http://127.0.0.1:8000/docs` or send a sanitized `POST` request to `/v1/next-action`.
+
+```bash
+pytest
+```
+
+## Deploy with FastRouter
+
+On the VPS, change only these values in `apps/api/.env`:
+
+```env
+NUDGE_PROVIDER=fastrouter
+NUDGE_MODEL=openai/gpt-5-mini
+FASTROUTER_API_KEY=your-server-only-key
+```
+
+Never put this key in the extension, browser storage, Vercel environment, or Git. The model is requested with a strict JSON schema; the server independently rejects unknown, hidden, disabled, role-incompatible, malformed, and navigation actions. Phase 3 also forces confirmation for every proposal. The extension remains the final enforcement point in Phase 4.

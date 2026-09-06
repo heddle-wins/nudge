@@ -16,6 +16,13 @@ describe("privacy-core", () => {
     expect(result.redactions).toEqual(["email", "phone"]);
   });
 
+  it("redacts token-like dashboard values, including truncated representations", () => {
+    const result = sanitizeText("Active key: sk-v1-a0...609");
+
+    expect(result.value).toBe("Active key: [TOKEN_REDACTED]");
+    expect(result.redactions).toEqual(["token"]);
+  });
+
   it("never exports sensitive field values or query-bearing URLs", () => {
     const context = createSanitizedPageContext({
       url: `https://portal.example.gov.in/track?email=${secrets.email}`,

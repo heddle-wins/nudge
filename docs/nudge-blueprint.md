@@ -266,11 +266,13 @@ The demo must visibly show:
 
 ### Phase 3 — Reasoning server
 
-- [ ] Create FastAPI server with `POST /v1/next-action`.
-- [ ] Add schema validation for incoming sanitized context.
-- [ ] Add provider adapter and environment-based provider configuration.
-- [ ] Restrict the model to the action schema.
-- [ ] Validate outgoing action responses.
+- [x] Create FastAPI server with `POST /v1/next-action`.
+- [x] Add schema validation for incoming sanitized context.
+- [x] Add provider adapter and environment-based provider configuration.
+- [x] Restrict the model to the action schema.
+- [x] Validate outgoing action responses.
+
+The local default is a deterministic mock provider, so the complete API flow can be tested without a key. On the VPS, set `NUDGE_PROVIDER=fastrouter` and provide `FASTROUTER_API_KEY`; the first configured model is `openai/gpt-5-mini`. The key exists only in `apps/api/.env` on the server and is never available to the extension.
 
 **Exit criterion:** A fixture context consistently yields a schema-valid action without raw data being logged.
 

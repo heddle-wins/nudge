@@ -12,7 +12,7 @@ We see a genuine and growing problem: people should be able to benefit from capa
 
 Most browser agents begin by sending a page or screenshot to an AI model. Nudge begins with a different question: **what must never leave the browser?** It sanitizes context on the user’s device, then asks a hosted reasoning service to propose a safe, structured next action.
 
-**Status:** Local privacy firewall complete · Hosted reasoning and safe action execution next
+**Status:** Local privacy firewall and schema-enforced hosted reasoning complete · Safe action execution next
 
 ---
 
@@ -170,7 +170,7 @@ The privacy tests use deliberately fake PII and verify that emails, phones, Aadh
 - [x] Define privacy contract, action contract, architecture, and technical stack
 - [x] Scaffold the Manifest V3 extension and side-panel experience
 - [x] Build the local DOM/a11y inventory and privacy firewall
-- [ ] Build the schema-enforced Nudge reasoning server
+- [x] Build the schema-enforced Nudge reasoning server
 - [ ] Add locally validated browser actions and consent flows
 - [ ] Demonstrate a complete public-service workflow with visible redaction
 - [ ] Measure accuracy, PII detection/redaction quality, resource usage, and latency

@@ -1,4 +1,5 @@
 import { canExportRedactedViewport, createOutboundSafeContext, createPrivacyInspection } from "@nudge/privacy-core";
+import { nextActionRequestSchema, nextActionResponseSchema, type NextActionRequest, type NextActionResponse } from "@nudge/contracts";
 import { collectRawPageContext, markElementPrivate } from "../content/collect";
 import { renderRedactedViewport } from "../content/viewport";
 
@@ -88,6 +89,65 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       };
     }
   }).then(sendResponse);
+  return true;
+});
+
+function validateProposedAction(response: NextActionResponse, request: NextActionRequest) {
+  const action = response.action;
+  const targets = new Map(request.context.page.elements.map((element) => [element.id, element]));
+  if (action.type === "navigate") throw new Error("Navigation is not enabled until Phase 4's local allowlist validator is ready.");
+
+  if (action.type === "click" || action.type === "select" || action.type === "type") {
+    if (!action.targetId) throw new Error("The reasoning server returned an action without a target.");
+    const target = targets.get(action.targetId);
+    if (!target || !target.state.visible || !target.state.enabled) throw new Error("The reasoning server returned a stale or unavailable target.");
+    const validRoles = {
+      click: ["button", "link", "checkbox", "radio"],
+      select: ["select", "combobox"],
+      type: ["textbox", "combobox"]
+    } as const;
+    if (!(validRoles[action.type] as readonly string[]).includes(target.role)) throw new Error("The reasoning server returned an incompatible target.");
+  }
+
+  if (action.type === "scroll" && !action.direction) throw new Error("The reasoning server returned an incomplete scroll action.");
+  if (action.type === "select" && !action.optionLabel) throw new Error("The reasoning server returned an incomplete select action.");
+  if ((action.type === "request_user_input" || action.type === "report_result") && !action.message) throw new Error("The reasoning server returned an incomplete user message.");
+  if (!response.requiresConfirmation) throw new Error("Nudge requires confirmation for every Phase 3 proposal.");
+}
+
+function reasoningEndpoint(serverUrl: string) {
+  const url = new URL(serverUrl);
+  const isLocal = url.protocol === "http:" && ["127.0.0.1", "localhost"].includes(url.hostname);
+  if (!isLocal && url.protocol !== "https:") throw new Error("The reasoning server must use HTTPS, except for local development.");
+  if (url.username || url.password) throw new Error("The reasoning server URL must not contain credentials.");
+  url.pathname = `${url.pathname.replace(/\/$/, "")}/v1/next-action`;
+  return url.toString();
+}
+
+async function requestNextAction(payload: unknown, serverUrl: unknown) {
+  const request = nextActionRequestSchema.parse(payload);
+  if (typeof serverUrl !== "string") throw new Error("Set a reasoning server URL before requesting a proposal.");
+  const response = await fetch(reasoningEndpoint(serverUrl), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request)
+  });
+  if (!response.ok) {
+    const errorBody = await response.json().catch(() => undefined) as { detail?: unknown } | undefined;
+    const detail = typeof errorBody?.detail === "string" ? errorBody.detail : undefined;
+    throw new Error(detail ?? `The reasoning server rejected this sanitized request (${response.status}).`);
+  }
+  const result = nextActionResponseSchema.parse(await response.json());
+  validateProposedAction(result, request);
+  return result;
+}
+
+chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  if (message?.type !== "NUDGE_REQUEST_NEXT_ACTION") return;
+  requestNextAction(message.payload, message.serverUrl).then(
+    (proposal) => sendResponse({ ok: true, proposal }),
+    (error) => sendResponse({ ok: false, error: error instanceof Error ? error.message : "Nudge could not get a safe action proposal." })
+  );
   return true;
 });
 

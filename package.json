@@ -1,7 +1,7 @@
 {
   "name": "nudge",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Privacy-first browser automation by Heddle.",
   "packageManager": "pnpm@9.15.5",
   "scripts": {

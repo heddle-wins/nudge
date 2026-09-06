@@ -23,6 +23,16 @@ h2 { font-size: 1rem; }
 .preview-heading { display: flex; align-items: start; justify-content: space-between; gap: 0.75rem; }
 .badge { border-radius: 999px; background: #1f4f86; color: #d9ecff; font-size: 0.75rem; padding: 0.35rem 0.55rem; white-space: nowrap; }
 .privacy-note { color: #b4e1c2; font-size: 0.82rem; line-height: 1.4; }
+.redaction-summary { display: grid; gap: 0.55rem; border: 1px solid #31445b; border-radius: 0.65rem; background: #152131; padding: 0.75rem; }
+.redaction-summary ul { display: grid; gap: 0.45rem; list-style: none; margin: 0; padding: 0; }
+.redaction-summary li { display: grid; gap: 0.1rem; color: #dbe8f8; font-size: 0.82rem; }
+.redaction-summary li span { color: #9eb0c5; font-size: 0.78rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.viewport-preview { display: grid; gap: 0.65rem; border-top: 1px solid #293343; padding-top: 0.8rem; }
+.viewport-copy, .control-copy { color: #aab5c4; font-size: 0.8rem; line-height: 1.4; margin: 0.35rem 0 0; }
+.viewport-preview img { width: 100%; max-height: 15rem; object-fit: contain; object-position: top; border: 1px solid #293343; border-radius: 0.5rem; background: #0d1118; }
+.element-list { display: grid; gap: 0.45rem; margin-top: 0.7rem; }
+.secondary { overflow: hidden; border: 1px solid #3b4a60; border-radius: 0.45rem; background: #1b2737; color: #d8e7f8; cursor: pointer; padding: 0.5rem 0.6rem; text-align: left; text-overflow: ellipsis; white-space: nowrap; }
+.secondary:hover { background: #243750; }
 details { color: #cad5e4; font-size: 0.85rem; }
 summary { cursor: pointer; font-weight: 650; }
 pre { max-height: 21rem; overflow: auto; border-radius: 0.5rem; background: #0d1118; color: #cfe4ff; font-size: 0.72rem; line-height: 1.45; padding: 0.8rem; white-space: pre-wrap; word-break: break-word; }

@@ -1,16 +1,18 @@
-# Nudge <sub>by <img src="docs/assets/heddle-mark.svg" width="22" height="20" alt="" style="vertical-align: -0.06em;" /> Heddle</sub>
+<h1 align="center" style="border-bottom: none;">Nudge <sub>by <img src="docs/assets/heddle-mark.svg" width="22" height="20" alt="" style="vertical-align: -0.06em;" /> Heddle</sub></h1>
 
-## Privacy is enforced before intelligence is invoked.
+<h3 align="center">Privacy is enforced before intelligence is invoked.</h3>
 
-**Nudge is a local-first browser agent that helps people complete web workflows without handing their private screen, form data, or credentials to an AI provider.**
+<p align="center"><strong>Nudge is a local-first browser agent that helps people complete web workflows without handing their private screen, form data, or credentials to an AI provider.</strong></p>
 
-Nudge is a project by **Heddle**, built in public. [Smart India Hackathon 2026 problem statement SIH26171](problem-statement.md), *On-device Visual Perception for Light-weight Browser Agents*, gave us a precise challenge—but it is not the reason this project exists.
+---
+
+Nudge is built by **Heddle**, in public. [Smart India Hackathon 2026 problem statement SIH26171](problem-statement.md), *On-device Visual Perception for Light-weight Browser Agents*, gave us a precise challenge—but it is not the reason Nudge exists.
 
 We see a genuine and growing problem: people should be able to benefit from capable browser agents without being forced to expose their screens, forms, credentials, and personal workflows to an AI provider. Nudge is being built as an open project to make that privacy-respecting path practical, inspectable, and useful beyond the hackathon.
 
 Most browser agents begin by sending a page or screenshot to an AI model. Nudge begins with a different question: **what must never leave the browser?** It sanitizes context on the user’s device, then asks a hosted reasoning service to propose a safe, structured next action.
 
-**Status:** Architecture and privacy contract defined · Implementation in progress
+**Status:** Local privacy firewall complete · Hosted reasoning and safe action execution next
 
 ---
 
@@ -147,9 +149,9 @@ The extension resolves `targetId` against its current local page inventory. Miss
 - **Quality:** Vitest, Playwright, pytest, privacy-regression fixtures
 - **Deployment:** Docker Compose for a reproducible demonstration environment
 
-## Develop Phase 1
+## Develop locally
 
-Phase 1 is intentionally local-only: it has no API, LLM provider, database, or external network request.
+Phases 1 and 2 are intentionally local-only: there is no API, LLM provider, database, or external network request.
 
 ```bash
 pnpm install
@@ -158,16 +160,16 @@ pnpm typecheck
 pnpm build
 ```
 
-To try the extension in Chrome, load `apps/extension/dist` as an unpacked extension from `chrome://extensions`, open the Nudge side panel, and select **Inspect active page**. The panel displays the sanitized browser context that would be eligible for a future server request.
+To try the extension in Chrome, load `apps/extension/dist` as an unpacked extension from `chrome://extensions`, open the Nudge side panel, and select **Inspect active page**. The panel displays the sanitized browser context and, only when every visible region can be safely inspected, a locally redacted viewport preview that would be eligible for a future server request. You can also mark a visible field private for the current tab session.
 
-The privacy tests use deliberately fake PII and verify that email, phone number, Aadhaar-like ID, password, and URL query data do not appear in the generated context.
+The privacy tests use deliberately fake PII and verify that emails, phones, Aadhaar-like IDs, PANs, card and account numbers, passwords, custom user-marked values, and URL query data do not appear in the generated context.
 
 ## Roadmap
 
 - [x] Capture SIH26171 and define the Nudge product boundary
 - [x] Define privacy contract, action contract, architecture, and technical stack
-- [ ] Scaffold the Manifest V3 extension and side-panel experience
-- [ ] Build the local DOM/a11y inventory and privacy firewall
+- [x] Scaffold the Manifest V3 extension and side-panel experience
+- [x] Build the local DOM/a11y inventory and privacy firewall
 - [ ] Build the schema-enforced Nudge reasoning server
 - [ ] Add locally validated browser actions and consent flows
 - [ ] Demonstrate a complete public-service workflow with visible redaction

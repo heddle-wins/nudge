@@ -9,7 +9,8 @@ export const piiKindSchema = z.enum([
   "account_number",
   "address",
   "date_of_birth",
-  "token"
+  "token",
+  "user_marked"
 ]);
 
 export type PiiKind = z.infer<typeof piiKindSchema>;

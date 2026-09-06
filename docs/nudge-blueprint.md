@@ -247,20 +247,20 @@ The demo must visibly show:
 
 ### Phase 1 — Extension foundation
 
-- [ ] Create TypeScript Manifest V3 extension scaffold.
-- [ ] Add popup/side-panel UI with task entry and automation-mode selector.
-- [ ] Add content script and service-worker communication.
-- [ ] Implement visible-element inventory with stable element IDs.
+- [x] Create TypeScript Manifest V3 extension scaffold.
+- [x] Add side-panel UI for local inspection and sanitized-context preview.
+- [x] Add content script and service-worker communication.
+- [x] Implement visible-element inventory with stable element IDs.
 
 **Exit criterion:** Nudge can list visible buttons, inputs, links, and page title from a test page.
 
 ### Phase 2 — Local privacy firewall
 
-- [ ] Implement field-semantic, label, and regex-based PII detection.
-- [ ] Implement DOM sanitization and typed placeholders.
-- [ ] Implement redacted viewport/canvas export.
-- [ ] Add privacy preview: original local view versus outbound sanitized representation.
-- [ ] Block unsafe outbound payloads with automated tests.
+- [x] Implement field-semantic, label, user-marked, and regex-based PII detection.
+- [x] Implement DOM sanitization and typed placeholders.
+- [x] Implement local redacted viewport/canvas export.
+- [x] Add privacy preview: live local page versus outbound-safe representation.
+- [x] Block unsafe outbound payloads with automated tests.
 
 **Exit criterion:** Tests prove that passwords, emails, phones, IDs, and user-marked values cannot appear in an outbound payload.
 

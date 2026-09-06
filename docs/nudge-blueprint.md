@@ -278,12 +278,14 @@ The local default is a deterministic mock provider, so the complete API flow can
 
 ### Phase 4 — Safe action execution
 
-- [ ] Implement action resolver for click, scroll, select, and report-result.
-- [ ] Add confirmation handling and high-impact action policy.
-- [ ] Implement stale-target, navigation, and MFA/CAPTCHA failure paths.
-- [ ] Add in-extension audit timeline.
+- [x] Implement action resolver for click, scroll, select, and report-result.
+- [x] Add confirmation handling and high-impact action policy.
+- [x] Implement stale-target, navigation, and MFA/CAPTCHA failure paths.
+- [x] Add in-extension audit timeline.
 
-**Exit criterion:** The extension completes a controlled multi-step test flow and safely pauses on restricted steps.
+The extension re-resolves every target from the current local page immediately after the user presses **Confirm and execute**. It executes only low-risk clicks, scrolls, standard selects, and local report results. It never types a provider-supplied value or automatically submits a form. Authentication, credential, payment, destructive, external-navigation, stale-target, MFA, and CAPTCHA paths pause locally and are recorded as a data-minimized audit outcome.
+
+**Exit criterion:** The extension completes a controlled low-risk action after confirmation and safely pauses on restricted steps.
 
 ### Phase 5 — SIH demo hardening
 

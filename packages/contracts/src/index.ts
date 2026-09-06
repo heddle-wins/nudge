@@ -97,3 +97,36 @@ export const nextActionResponseSchema = z.object({
 }).strict();
 
 export type NextActionResponse = z.infer<typeof nextActionResponseSchema>;
+
+/**
+ * This is produced inside the extension after a user confirms a proposal. It
+ * deliberately contains no page text, form value, selector, URL path, or
+ * provider supplied code. The content script resolves the target again from
+ * the live page before doing anything.
+ */
+export const executionRequestSchema = z.object({
+  action: proposedActionSchema,
+  expectedPageOrigin: z.string().url(),
+  expectedTarget: sanitizedElementSchema.optional()
+}).strict();
+
+export type ExecutionRequest = z.infer<typeof executionRequestSchema>;
+
+export const executionResultSchema = z.object({
+  status: z.enum(["completed", "blocked", "failed"]),
+  outcome: z.enum([
+    "action_completed",
+    "high_impact_action",
+    "sensitive_target",
+    "stale_target",
+    "page_changed",
+    "external_navigation",
+    "mfa_or_captcha",
+    "unsupported_action",
+    "action_failed",
+    "user_message"
+  ]),
+  message: z.string().max(500)
+}).strict();
+
+export type ExecutionResult = z.infer<typeof executionResultSchema>;

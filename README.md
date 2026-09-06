@@ -12,7 +12,7 @@ We see a genuine and growing problem: people should be able to benefit from capa
 
 Most browser agents begin by sending a page or screenshot to an AI model. Nudge begins with a different question: **what must never leave the browser?** It sanitizes context on the user’s device, then asks a hosted reasoning service to propose a safe, structured next action.
 
-**Status:** Local privacy firewall and schema-enforced hosted reasoning complete · Safe action execution next
+**Status:** Local privacy firewall, schema-enforced hosted reasoning, and confirmed safe-action execution complete
 
 ---
 
@@ -151,7 +151,7 @@ The extension resolves `targetId` against its current local page inventory. Miss
 
 ## Develop locally
 
-Phases 1 and 2 are intentionally local-only: there is no API, LLM provider, database, or external network request.
+The privacy inspection and action-execution layers run entirely in the browser. The reasoning server is optional: use the local mock provider for a complete no-key flow, or configure a server-only hosted-model key as described in [the API README](apps/api/README.md).
 
 ```bash
 pnpm install
@@ -171,7 +171,7 @@ The privacy tests use deliberately fake PII and verify that emails, phones, Aadh
 - [x] Scaffold the Manifest V3 extension and side-panel experience
 - [x] Build the local DOM/a11y inventory and privacy firewall
 - [x] Build the schema-enforced Nudge reasoning server
-- [ ] Add locally validated browser actions and consent flows
+- [x] Add locally validated browser actions, consent flows, and a local audit timeline
 - [ ] Demonstrate a complete public-service workflow with visible redaction
 - [ ] Measure accuracy, PII detection/redaction quality, resource usage, and latency
 

@@ -30,4 +30,4 @@ NUDGE_MODEL=openai/gpt-5-mini
 FASTROUTER_API_KEY=your-server-only-key
 ```
 
-Never put this key in the extension, browser storage, Vercel environment, or Git. The model is requested with a strict JSON schema; the server independently rejects unknown, hidden, disabled, role-incompatible, malformed, and navigation actions. Phase 3 also forces confirmation for every proposal. The extension remains the final enforcement point in Phase 4.
+Never put this key in the extension, browser storage, Vercel environment, or Git. The model is requested with a strict JSON schema; the server independently rejects unknown, hidden, disabled, role-incompatible, malformed, and navigation actions. Every proposal requires confirmation. The extension is the final enforcement point: it re-resolves the live target and applies its local execution policy before any action can run.

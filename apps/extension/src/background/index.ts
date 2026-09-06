@@ -1,7 +1,19 @@
 import { canExportRedactedViewport, createOutboundSafeContext, createPrivacyInspection } from "@nudge/privacy-core";
-import { nextActionRequestSchema, nextActionResponseSchema, type NextActionRequest, type NextActionResponse } from "@nudge/contracts";
+import {
+  executionRequestSchema,
+  executionResultSchema,
+  nextActionRequestSchema,
+  nextActionResponseSchema,
+  sanitizedPageContextSchema,
+  type ExecutionResult,
+  type NextActionRequest,
+  type NextActionResponse,
+  type SanitizedPageContext
+} from "@nudge/contracts";
 import { collectRawPageContext, markElementPrivate } from "../content/collect";
+import { executeApprovedAction } from "../content/execute";
 import { renderRedactedViewport } from "../content/viewport";
+import { evaluateExecutionPolicy } from "../execution-policy";
 
 chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch(console.error);
 
@@ -115,6 +127,63 @@ function validateProposedAction(response: NextActionResponse, request: NextActio
   if (!response.requiresConfirmation) throw new Error("Nudge requires confirmation for every Phase 3 proposal.");
 }
 
+type AuditEntry = {
+  id: string;
+  at: string;
+  action: string;
+  targetId?: string;
+  status: ExecutionResult["status"];
+  outcome: ExecutionResult["outcome"];
+};
+
+async function appendAudit(action: string, targetId: string | undefined, result: ExecutionResult): Promise<AuditEntry> {
+  const entry: AuditEntry = {
+    id: crypto.randomUUID(),
+    at: new Date().toISOString(),
+    action,
+    ...(targetId ? { targetId } : {}),
+    status: result.status,
+    outcome: result.outcome
+  };
+  const stored = await chrome.storage.local.get({ nudgeAuditTrail: [] });
+  const existing = Array.isArray(stored.nudgeAuditTrail) ? stored.nudgeAuditTrail as AuditEntry[] : [];
+  await chrome.storage.local.set({ nudgeAuditTrail: [entry, ...existing].slice(0, 30) });
+  return entry;
+}
+
+async function dispatchApprovedAction(tabId: number, request: Parameters<typeof executeApprovedAction>[0]) {
+  try {
+    const response = await chrome.tabs.sendMessage(tabId, { type: "NUDGE_EXECUTE_APPROVED_ACTION", request });
+    if (response?.ok) return executionResultSchema.parse(response.result);
+  } catch {
+    // The page predates extension installation; inject the same local executor.
+  }
+  const [injection] = await chrome.scripting.executeScript({ target: { tabId }, func: executeApprovedAction, args: [request] });
+  if (!injection?.result) throw new Error("Nudge could not complete the approved action.");
+  return executionResultSchema.parse(injection.result);
+}
+
+async function executeAction(tabId: number, rawProposal: unknown, rawContext: unknown) {
+  const proposal = nextActionResponseSchema.parse(rawProposal);
+  const context = sanitizedPageContextSchema.parse(rawContext) as SanitizedPageContext;
+  if (!proposal.requiresConfirmation) throw new Error("Nudge requires an explicit confirmation before execution.");
+  const tab = await chrome.tabs.get(tabId);
+  if (!tab.url) throw new Error("Nudge could not verify the active page before execution.");
+  const expectedPageOrigin = new URL(tab.url).origin;
+  if (expectedPageOrigin !== context.page.urlOrigin) throw new Error("The page changed after the proposal. Inspect again before continuing.");
+
+  const expectedTarget = proposal.action.targetId
+    ? context.page.elements.find((element) => element.id === proposal.action.targetId)
+    : undefined;
+  const request = executionRequestSchema.parse({ action: proposal.action, expectedPageOrigin, ...(expectedTarget ? { expectedTarget } : {}) });
+  const policy = evaluateExecutionPolicy(request, context);
+  const result: ExecutionResult = policy.allowed
+    ? await dispatchApprovedAction(tabId, request)
+    : { status: "blocked", outcome: policy.outcome, message: policy.message };
+  const audit = await appendAudit(proposal.action.type, proposal.action.targetId, result);
+  return { result, audit };
+}
+
 function reasoningEndpoint(serverUrl: string) {
   const url = new URL(serverUrl);
   const isLocal = url.protocol === "http:" && ["127.0.0.1", "localhost"].includes(url.hostname);
@@ -148,6 +217,23 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     (proposal) => sendResponse({ ok: true, proposal }),
     (error) => sendResponse({ ok: false, error: error instanceof Error ? error.message : "Nudge could not get a safe action proposal." })
   );
+  return true;
+});
+
+chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  if (message?.type !== "NUDGE_EXECUTE_ACTION" || typeof message.tabId !== "number") return;
+  executeAction(message.tabId, message.proposal, message.context).then(
+    ({ result, audit }) => sendResponse({ ok: true, result, audit }),
+    (error) => sendResponse({ ok: false, error: error instanceof Error ? error.message : "Nudge could not complete the approved action." })
+  );
+  return true;
+});
+
+chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  if (message?.type !== "NUDGE_GET_AUDIT") return;
+  chrome.storage.local.get({ nudgeAuditTrail: [] }).then((stored) => {
+    sendResponse({ ok: true, entries: Array.isArray(stored.nudgeAuditTrail) ? stored.nudgeAuditTrail : [] });
+  });
   return true;
 });
 

@@ -19,6 +19,7 @@ const LOCAL_SERVER = "http://127.0.0.1:8000";
 function App() {
   const [state, setState] = useState<ViewState>({ status: "idle" });
   const [conversation, setConversation] = useState<ConversationItem[]>([]);
+  const [openPrivacyPanel, setOpenPrivacyPanel] = useState<"redactions" | "controls" | null>(null);
   const [draft, setDraft] = useState("");
   const [serverUrl, setServerUrl] = useState(LOCAL_SERVER);
   const [audit, setAudit] = useState<AuditEntry[]>([]);
@@ -48,12 +49,14 @@ function App() {
         viewport: typeof response.viewport === "string" ? response.viewport : undefined,
         viewportError: typeof response.viewportError === "string" ? response.viewportError : undefined
       });
+      setOpenPrivacyPanel(null);
       setConversation([]);
     } catch {
       if (serial !== requestSerial.current) return;
       // Browser-owned pages cannot be inspected. Keep that state in the composer
       // instead of adding an alarming conversation message.
       setState({ status: "error", label: "This page isn’t available to Nudge" });
+      setOpenPrivacyPanel(null);
       setConversation([]);
     }
   }, []);
@@ -108,10 +111,14 @@ function App() {
 
   const isReady = state.status === "ready";
   return <main className="app-shell">
-    <section className="conversation" aria-live="polite" aria-label="Nudge conversation">
-      {state.status === "loading" && <AssistantBubble kind="loading">Inspecting this page locally…</AssistantBubble>}
-      {state.status === "idle" && <AssistantBubble>Opening the active page’s local context…</AssistantBubble>}
-      {conversation.map((item) => item.kind === "proposal" ? <ProposalBubble key={item.id} proposal={item.proposal} onExecute={executeProposal} /> : item.role === "user" ? <div className="message user" key={item.id}>{item.text}</div> : <AssistantBubble key={item.id} kind={item.kind === "error" ? "error" : item.kind === "loading" ? "loading" : undefined}>{item.text}</AssistantBubble>)}
+    {openPrivacyPanel && <button className="privacy-backdrop" type="button" aria-label="Close privacy panel" onClick={() => setOpenPrivacyPanel(null)} />}
+    {state.status === "ready" && <PrivacySummary view={state} openPanel={openPrivacyPanel} onOpenPanelChange={setOpenPrivacyPanel} onMarkPrivate={markPrivate} />}
+    <section className="conversation-viewport">
+      <section className="conversation" aria-live="polite" aria-label="Nudge conversation">
+        {state.status === "loading" && <AssistantBubble kind="loading">Inspecting this page locally…</AssistantBubble>}
+        {state.status === "idle" && <AssistantBubble>Opening the active page’s local context…</AssistantBubble>}
+        {conversation.map((item) => item.kind === "proposal" ? <ProposalBubble key={item.id} proposal={item.proposal} onExecute={executeProposal} /> : item.role === "user" ? <div className="message user" key={item.id}>{item.text}</div> : <AssistantBubble key={item.id} kind={item.kind === "error" ? "error" : item.kind === "loading" ? "loading" : undefined}>{item.text}</AssistantBubble>)}
+      </section>
     </section>
     <form className="composer" onSubmit={(event) => void sendTask(event)}>
       {isReady && <div className="composer-context"><span className="composer-favicon">{state.page.faviconUrl ? <img src={state.page.faviconUrl} alt="" /> : state.page.hostname.slice(0, 1).toUpperCase()}</span><span>Nudging “{shortTitle(state.page.title)}”</span></div>}
@@ -125,6 +132,26 @@ function App() {
       </div>
     </form>
   </main>;
+}
+
+function PrivacySummary({ view, openPanel, onOpenPanelChange, onMarkPrivate }: { view: ReadyView; openPanel: "redactions" | "controls" | null; onOpenPanelChange: (panel: "redactions" | "controls" | null) => void; onMarkPrivate: (id: string) => Promise<void> }) {
+  const privateFields = view.context.page.elements.filter((element) => element.role === "textbox" || element.role === "combobox").slice(0, 20);
+  const redactions = view.context.page.redactions.count;
+  return <section className="privacy-summary" aria-label="Privacy controls">
+    <details className="redaction-details" open={openPanel === "redactions"}>
+      <summary onClick={(event) => { event.preventDefault(); onOpenPanelChange(openPanel === "redactions" ? null : "redactions"); }}><ShieldCheck /><span>{redactions} {redactions === 1 ? "item" : "items"} redacted</span><NavArrowDown /></summary>
+      <div className="redaction-details-panel">
+        {view.redactionDetails.length > 0 ? <ul>{view.redactionDetails.map((detail, index) => <li key={`${detail.kind}-${detail.location}-${index}`}><strong>{piiLabel(detail.kind)}</strong><span>{detail.location}</span></li>)}</ul> : <p>No sensitive values were found on this page.</p>}
+      </div>
+    </details>
+    <details className="privacy-controls" open={openPanel === "controls"}>
+      <summary onClick={(event) => { event.preventDefault(); onOpenPanelChange(openPanel === "controls" ? null : "controls"); }}><ControlSlider />Privacy controls</summary>
+      <div className="privacy-controls-panel">
+        <p>Protected values stay in this browser.</p>
+        {privateFields.length > 0 ? <div className="element-list">{privateFields.map((element) => <button type="button" key={element.id} onClick={() => void onMarkPrivate(element.id)}>Mark “{element.name}” private</button>)}</div> : <p>No editable fields are available to mark private.</p>}
+      </div>
+    </details>
+  </section>;
 }
 
 function PageContext({ view, serverUrl, onServerUrlChange, onMarkPrivate, audit }: { view: ReadyView; serverUrl: string; onServerUrlChange: (value: string) => void; onMarkPrivate: (id: string) => Promise<void>; audit: AuditEntry[] }) {
@@ -159,5 +186,8 @@ function ProposalBubble({ proposal, onExecute }: { proposal: NextActionResponse;
 function piiLabel(kind: RedactionDetail["kind"]): string { return ({ password: "Password", email: "Email", phone: "Phone", government_id: "Government ID", payment: "Payment detail", account_number: "Account number", address: "Address", date_of_birth: "Date of birth", token: "Token", user_marked: "Marked private" } as const)[kind]; }
 function safeHostname(origin: string) { try { return new URL(origin).hostname; } catch { return origin; } }
 function shortTitle(title: string) { return title.length > 31 ? `${title.slice(0, 30).trimEnd()}…` : title; }
+function ControlSlider() { return <svg className="control-slider-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">{/* Iconoir control-slider — https://iconoir.com/icon/control-slider */}<path d="M6.75469 17.2828 5.32612 7.28284C5.154 6.07798 6.08892 5 7.30602 5H10.694C11.9111 5 12.846 6.07797 12.6739 7.28284L11.2453 17.2828C11.1046 18.2681 10.2607 19 9.26541 19H8.73459C7.73929 19 6.89545 18.2681 6.75469 17.2828Z" stroke="currentColor" strokeWidth="1.5" /><path d="M2 12H6M22 12H12" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" /></svg>; }
+function ShieldCheck() { return <svg className="shield-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">{/* Iconoir shield-check — https://iconoir.com/icon/shield-check */}<path d="m8.5 11.5 3 3 5-5" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" /><path d="M5 18 3.13036 4.91253C3.05646 4.39524 3.39389 3.91247 3.90398 3.79912L11.5661 2.09641C11.8519 2.03291 12.1481 2.03291 12.4339 2.09641L20.096 3.79912C20.6061 3.91247 20.9435 4.39524 20.8696 4.91252L19 18C18.9293 18.495 18.5 21.5 12 21.5 5.5 21.5 5.07071 18.495 5 18Z" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" /></svg>; }
+function NavArrowDown() { return <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">{/* Iconoir nav-arrow-down — https://iconoir.com/icon/nav-arrow-down */}<path d="m6 9 6 6 6-6" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" /></svg>; }
 function PcNoEntry() { return <svg className="unavailable-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">{/* Iconoir pc-no-entry — https://iconoir.com/icon/pc-no-entry */}<path d="M7 22L17 22" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" /><path d="M2 17V4C2 2.89543 2.89543 2 4 2H20C21.1046 2 22 2.89543 22 4V17C22 18.1046 21.1046 19 20 19H4C2.89543 19 2 18.1046 2 17Z" stroke="currentColor" /><path d="M14.8566 7.7C14.1306 6.95946 13.119 6.5 12 6.5C9.79086 6.5 8 8.29086 8 10.5C8 11.5902 8.43613 12.5785 9.14343 13.3M14.8566 7.7C15.5639 8.4215 16 9.40982 16 10.5C16 12.7091 14.2091 14.5 12 14.5C10.881 14.5 9.8694 14.0405 9.14343 13.3M14.8566 7.7L9.14343 13.3" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" /></svg>; }
 createRoot(document.getElementById("root")!).render(<StrictMode><App /></StrictMode>);

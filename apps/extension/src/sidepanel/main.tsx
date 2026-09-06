@@ -1,6 +1,6 @@
 import { StrictMode, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
-import type { NextActionResponse, SanitizedPageContext } from "@nudge/contracts";
+import type { ExecutionResult, NextActionResponse, SanitizedPageContext } from "@nudge/contracts";
 import type { RedactionDetail } from "@nudge/privacy-core";
 import "./styles.css";
 
@@ -16,9 +16,26 @@ type ProposalState =
   | { status: "error"; message: string }
   | { status: "ready"; proposal: NextActionResponse };
 
+type ExecutionState =
+  | { status: "idle" }
+  | { status: "loading" }
+  | { status: "error"; message: string }
+  | { status: "ready"; result: ExecutionResult };
+
+type AuditEntry = {
+  id: string;
+  at: string;
+  action: string;
+  targetId?: string;
+  status: ExecutionResult["status"];
+  outcome: ExecutionResult["outcome"];
+};
+
 function App() {
   const [state, setState] = useState<ViewState>({ status: "idle" });
   const [proposalState, setProposalState] = useState<ProposalState>({ status: "idle" });
+  const [executionState, setExecutionState] = useState<ExecutionState>({ status: "idle" });
+  const [audit, setAudit] = useState<AuditEntry[]>([]);
   const [task, setTask] = useState("Find the next step for this task");
   const [serverUrl, setServerUrl] = useState("http://127.0.0.1:8000");
 
@@ -28,9 +45,17 @@ function App() {
     });
   }, []);
 
+  async function loadAudit() {
+    const response = await chrome.runtime.sendMessage({ type: "NUDGE_GET_AUDIT" });
+    if (response?.ok && Array.isArray(response.entries)) setAudit(response.entries as AuditEntry[]);
+  }
+
+  useEffect(() => { void loadAudit(); }, []);
+
   async function inspectCurrentTab() {
     setState({ status: "loading" });
     setProposalState({ status: "idle" });
+    setExecutionState({ status: "idle" });
     try {
       const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
       if (!tab.id) throw new Error("No active browser tab was found.");
@@ -55,6 +80,7 @@ function App() {
 
   async function requestProposal(context: SanitizedPageContext) {
     setProposalState({ status: "loading" });
+    setExecutionState({ status: "idle" });
     try {
       await chrome.storage.local.set({ nudgeReasoningServerUrl: serverUrl.trim() });
       const response = await chrome.runtime.sendMessage({
@@ -69,10 +95,24 @@ function App() {
     }
   }
 
+  async function executeProposal(context: SanitizedPageContext, proposal: NextActionResponse) {
+    setExecutionState({ status: "loading" });
+    try {
+      const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+      if (!tab.id) throw new Error("No active browser tab was found.");
+      const response = await chrome.runtime.sendMessage({ type: "NUDGE_EXECUTE_ACTION", tabId: tab.id, proposal, context });
+      if (!response?.ok) throw new Error(response?.error ?? "Nudge could not complete the approved action.");
+      setExecutionState({ status: "ready", result: response.result as ExecutionResult });
+      await loadAudit();
+    } catch (error) {
+      setExecutionState({ status: "error", message: error instanceof Error ? error.message : "Nudge could not complete the approved action." });
+    }
+  }
+
   return (
     <main>
       <header>
-        <p className="eyebrow">Nudge · Phase 3</p>
+        <p className="eyebrow">Nudge · Phase 4</p>
         <h1>Private context, locally.</h1>
         <p className="subtitle">Inspect locally, then ask your reasoning server for one safe next-action proposal.</p>
       </header>
@@ -92,7 +132,10 @@ function App() {
           onTaskChange={setTask}
           onServerUrlChange={setServerUrl}
           onRequest={requestProposal}
+          executionState={executionState}
+          onExecute={executeProposal}
         />
+        <AuditTimeline audit={audit} />
       </>}
       {state.status === "idle" && <p className="notice">Nudge reads the active tab only after you choose to inspect it.</p>}
     </main>
@@ -184,7 +227,9 @@ function ReasoningControl({
   proposalState,
   onTaskChange,
   onServerUrlChange,
-  onRequest
+  onRequest,
+  executionState,
+  onExecute
 }: {
   context: SanitizedPageContext;
   task: string;
@@ -193,6 +238,8 @@ function ReasoningControl({
   onTaskChange: (value: string) => void;
   onServerUrlChange: (value: string) => void;
   onRequest: (context: SanitizedPageContext) => Promise<void>;
+  executionState: ExecutionState;
+  onExecute: (context: SanitizedPageContext, proposal: NextActionResponse) => Promise<void>;
 }) {
   return (
     <section className="reasoning" aria-live="polite">
@@ -210,20 +257,38 @@ function ReasoningControl({
         {proposalState.status === "loading" ? "Requesting safe proposal…" : "Request next action"}
       </button>
       {proposalState.status === "error" && <p className="notice error">{proposalState.message}</p>}
-      {proposalState.status === "ready" && <Proposal proposal={proposalState.proposal} />}
+      {proposalState.status === "ready" && <Proposal proposal={proposalState.proposal} executionState={executionState} onExecute={() => onExecute(context, proposalState.proposal)} />}
     </section>
   );
 }
 
-function Proposal({ proposal }: { proposal: NextActionResponse }) {
+function Proposal({ proposal, executionState, onExecute }: { proposal: NextActionResponse; executionState: ExecutionState; onExecute: () => Promise<void> }) {
   const target = proposal.action.targetId ? ` on ${proposal.action.targetId}` : "";
   return <section className="proposal">
     <p className="eyebrow">Proposed action</p>
     <p className="proposal-action">{proposal.action.type.replaceAll("_", " ")}{target}</p>
     {proposal.action.message && <p>{proposal.action.message}</p>}
     <p className="control-copy">{proposal.rationale}</p>
-    <p className="control-copy">Confidence {Math.round(proposal.confidence * 100)}% · Confirmation required</p>
-    <p className="notice">Phase 3 proposes only. Nudge will not execute this action until the local execution policy is built in Phase 4.</p>
+    <p className="control-copy">Confidence {Math.round(proposal.confidence * 100)}% · Local confirmation required</p>
+    <p className="notice">Nudge will re-check the live page locally before acting. It will pause for stale controls, MFA/CAPTCHA, sensitive fields, external navigation, and high-impact actions.</p>
+    <button className="primary confirm" type="button" onClick={() => void onExecute()} disabled={executionState.status === "loading" || executionState.status === "ready"}>
+      {executionState.status === "loading" ? "Re-checking and executing…" : "Confirm and execute"}
+    </button>
+    {executionState.status === "error" && <p className="notice error">{executionState.message}</p>}
+    {executionState.status === "ready" && <p className={`notice ${executionState.result.status === "completed" ? "success" : "error"}`}>{executionState.result.message}</p>}
+  </section>;
+}
+
+function AuditTimeline({ audit }: { audit: AuditEntry[] }) {
+  return <section className="audit" aria-label="Local action audit">
+    <p className="eyebrow">Local audit</p>
+    <p className="control-copy">Last 30 confirmed execution attempts. This device-only trail excludes page text, URLs, and form values.</p>
+    {audit.length === 0 ? <p className="control-copy">No confirmed actions yet.</p> : <ol>
+      {audit.slice(0, 8).map((entry) => <li key={entry.id}>
+        <strong>{entry.action.replaceAll("_", " ")}</strong>
+        <span>{entry.status === "completed" ? "Completed" : "Paused"} · {entry.outcome.replaceAll("_", " ")}</span>
+      </li>)}
+    </ol>}
   </section>;
 }
 

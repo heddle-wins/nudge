@@ -33,7 +33,7 @@ async function inspectTab(tabId: number) {
     if (!injection?.result) throw new Error("Nudge could not read this page.");
 
     const inspection = createPrivacyInspection(injection.result);
-    return { ok: true, context: createOutboundSafeContext(injection.result), redactionDetails: inspection.redactionDetails };
+    return { ok: true, context: createOutboundSafeContext(injection.result), redactionDetails: inspection.redactionDetails, visualRedactionCount: inspection.visualRedactions.length };
   } catch (error) {
     return {
       ok: false,

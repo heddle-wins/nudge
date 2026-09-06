@@ -7,6 +7,9 @@ const manifest: ManifestV3Export = {
   description: "Privacy-first browser automation by Heddle.",
   permissions: ["activeTab", "tabs", "sidePanel", "scripting", "storage"],
   host_permissions: ["<all_urls>"],
+  content_security_policy: {
+    extension_pages: "script-src 'self'; object-src 'self'; img-src 'self' data: http: https:"
+  },
   background: {
     service_worker: "src/background/index.ts",
     type: "module"

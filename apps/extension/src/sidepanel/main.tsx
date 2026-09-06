@@ -1,6 +1,6 @@
-import { StrictMode, useState } from "react";
+import { StrictMode, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
-import type { SanitizedPageContext } from "@nudge/contracts";
+import type { NextActionResponse, SanitizedPageContext } from "@nudge/contracts";
 import type { RedactionDetail } from "@nudge/privacy-core";
 import "./styles.css";
 
@@ -10,11 +10,27 @@ type ViewState =
   | { status: "error"; message: string }
   | { status: "ready"; context: SanitizedPageContext; redactionDetails: RedactionDetail[]; viewport?: string; viewportError?: string };
 
+type ProposalState =
+  | { status: "idle" }
+  | { status: "loading" }
+  | { status: "error"; message: string }
+  | { status: "ready"; proposal: NextActionResponse };
+
 function App() {
   const [state, setState] = useState<ViewState>({ status: "idle" });
+  const [proposalState, setProposalState] = useState<ProposalState>({ status: "idle" });
+  const [task, setTask] = useState("Find the next step for this task");
+  const [serverUrl, setServerUrl] = useState("http://127.0.0.1:8000");
+
+  useEffect(() => {
+    chrome.storage.local.get({ nudgeReasoningServerUrl: "http://127.0.0.1:8000" }).then((stored) => {
+      if (typeof stored.nudgeReasoningServerUrl === "string") setServerUrl(stored.nudgeReasoningServerUrl);
+    });
+  }, []);
 
   async function inspectCurrentTab() {
     setState({ status: "loading" });
+    setProposalState({ status: "idle" });
     try {
       const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
       if (!tab.id) throw new Error("No active browser tab was found.");
@@ -37,12 +53,28 @@ function App() {
     }
   }
 
+  async function requestProposal(context: SanitizedPageContext) {
+    setProposalState({ status: "loading" });
+    try {
+      await chrome.storage.local.set({ nudgeReasoningServerUrl: serverUrl.trim() });
+      const response = await chrome.runtime.sendMessage({
+        type: "NUDGE_REQUEST_NEXT_ACTION",
+        serverUrl: serverUrl.trim(),
+        payload: { task, context }
+      });
+      if (!response?.ok) throw new Error(response?.error ?? "Nudge could not get a safe action proposal.");
+      setProposalState({ status: "ready", proposal: response.proposal as NextActionResponse });
+    } catch (error) {
+      setProposalState({ status: "error", message: error instanceof Error ? error.message : "Nudge could not get a safe action proposal." });
+    }
+  }
+
   return (
     <main>
       <header>
-        <p className="eyebrow">Nudge · Phase 2</p>
+        <p className="eyebrow">Nudge · Phase 3</p>
         <h1>Private context, locally.</h1>
-        <p className="subtitle">Inspect the active page and preview the sanitized context. Nothing is sent anywhere.</p>
+        <p className="subtitle">Inspect locally, then ask your reasoning server for one safe next-action proposal.</p>
       </header>
 
       <button className="primary" type="button" onClick={inspectCurrentTab} disabled={state.status === "loading"}>
@@ -50,7 +82,18 @@ function App() {
       </button>
 
       {state.status === "error" && <p className="notice error">{state.message}</p>}
-      {state.status === "ready" && <ContextPreview context={state.context} redactionDetails={state.redactionDetails} viewport={state.viewport} viewportError={state.viewportError} onMarkPrivate={inspectCurrentTab} />}
+      {state.status === "ready" && <>
+        <ContextPreview context={state.context} redactionDetails={state.redactionDetails} viewport={state.viewport} viewportError={state.viewportError} onMarkPrivate={inspectCurrentTab} />
+        <ReasoningControl
+          context={state.context}
+          task={task}
+          serverUrl={serverUrl}
+          proposalState={proposalState}
+          onTaskChange={setTask}
+          onServerUrlChange={setServerUrl}
+          onRequest={requestProposal}
+        />
+      </>}
       {state.status === "idle" && <p className="notice">Nudge reads the active tab only after you choose to inspect it.</p>}
     </main>
   );
@@ -90,7 +133,7 @@ function ContextPreview({
       </div>
 
       <p className="privacy-note">
-        Privacy firewall active. No server or model is connected; this is the exact safe shape reserved for a future outbound request.
+        Privacy firewall active. Only this sanitized shape is eligible to leave the browser; the live page, raw DOM, and private values stay local.
       </p>
 
       {redactionDetails.length > 0 && <section className="redaction-summary" aria-label="Protected items">
@@ -132,6 +175,56 @@ function ContextPreview({
       </details>
     </section>
   );
+}
+
+function ReasoningControl({
+  context,
+  task,
+  serverUrl,
+  proposalState,
+  onTaskChange,
+  onServerUrlChange,
+  onRequest
+}: {
+  context: SanitizedPageContext;
+  task: string;
+  serverUrl: string;
+  proposalState: ProposalState;
+  onTaskChange: (value: string) => void;
+  onServerUrlChange: (value: string) => void;
+  onRequest: (context: SanitizedPageContext) => Promise<void>;
+}) {
+  return (
+    <section className="reasoning" aria-live="polite">
+      <p className="eyebrow">Reasoning server</p>
+      <label>
+        <span>Task</span>
+        <textarea value={task} maxLength={1_000} onChange={(event) => onTaskChange(event.target.value)} />
+      </label>
+      <label>
+        <span>Server URL</span>
+        <input value={serverUrl} inputMode="url" onChange={(event) => onServerUrlChange(event.target.value)} />
+      </label>
+      <p className="control-copy">Nudge sends the task and the outbound-safe context above—never a screenshot, raw DOM, cookies, or original redacted value.</p>
+      <button className="primary" type="button" onClick={() => void onRequest(context)} disabled={!task.trim() || !serverUrl.trim() || proposalState.status === "loading"}>
+        {proposalState.status === "loading" ? "Requesting safe proposal…" : "Request next action"}
+      </button>
+      {proposalState.status === "error" && <p className="notice error">{proposalState.message}</p>}
+      {proposalState.status === "ready" && <Proposal proposal={proposalState.proposal} />}
+    </section>
+  );
+}
+
+function Proposal({ proposal }: { proposal: NextActionResponse }) {
+  const target = proposal.action.targetId ? ` on ${proposal.action.targetId}` : "";
+  return <section className="proposal">
+    <p className="eyebrow">Proposed action</p>
+    <p className="proposal-action">{proposal.action.type.replaceAll("_", " ")}{target}</p>
+    {proposal.action.message && <p>{proposal.action.message}</p>}
+    <p className="control-copy">{proposal.rationale}</p>
+    <p className="control-copy">Confidence {Math.round(proposal.confidence * 100)}% · Confirmation required</p>
+    <p className="notice">Phase 3 proposes only. Nudge will not execute this action until the local execution policy is built in Phase 4.</p>
+  </section>;
 }
 
 function piiLabel(kind: RedactionDetail["kind"]): string {

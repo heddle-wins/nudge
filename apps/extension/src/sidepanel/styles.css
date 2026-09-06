@@ -56,11 +56,13 @@ pre { max-height: 15rem; overflow: auto; margin: .55rem 0 0; border-radius: .48r
 .execution-result.error { border-color: #ef7d83; color: #ffc2c6; }
 
 /* Compact neutral composer: page context sits directly above its bordered input. */
-.composer { display: grid; gap: .38rem; margin: 0 .65rem .55rem; border-radius: .68rem; background: #232425; padding: .32rem .12rem .12rem; box-shadow: none; }
-.composer-context { display: flex; align-items: center; gap: .28rem; width: 100%; min-width: 0; margin: 0; background: transparent; padding: 0 .44rem; color: #dedede; font-size: .78rem; font-weight: 600; }
+.composer { display: grid; gap: .38rem; margin: 0 .65rem .55rem; border-radius: .68rem; background: #232425; padding: .22rem .12rem .04rem; box-shadow: none; }
+.composer-context { display: flex; align-items: center; gap: .28rem; width: 100%; min-width: 0; margin: 0; background: transparent; padding: .2rem .44rem 0; color: #dedede; font-size: .78rem; font-weight: 600; }
 .composer-context > span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .composer-favicon { display: grid; flex: 0 0 auto; place-items: center; width: 1.2rem; height: 1.2rem; color: #d9e4ff; font-size: .7rem; }
 .composer-favicon img { width: 1.12rem; height: 1.12rem; object-fit: contain; }
+.unavailable-context { color: #a8a8a8; font-size: .7rem; font-weight: 550; }
+.unavailable-icon { flex: 0 0 auto; width: 1rem; height: 1rem; stroke-width: 1.5; }
 .composer-input { position: relative; display: flex; min-height: 5.05rem; border: 1px solid #4a4b4c; border-radius: .5rem; background: #1a1a1b; padding: .62rem .68rem .46rem; }
 .composer textarea { width: 100%; min-height: 1.6rem; max-height: 5.2rem; resize: none; border: 0; outline: 0; background: transparent; color: #f0f0f0; font-size: .92rem; line-height: 1.37; overflow: hidden; white-space: nowrap; }
 .composer textarea::placeholder { color: #bebebe; }

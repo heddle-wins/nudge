@@ -6,7 +6,8 @@ import "./styles.css";
 
 type PageIdentity = { tabId: number; title: string; origin: string; hostname: string; faviconUrl: string };
 type ReadyView = { status: "ready"; context: SanitizedPageContext; redactionDetails: RedactionDetail[]; visualRedactionCount: number; viewport?: string; viewportError?: string; page: PageIdentity };
-type ViewState = { status: "idle" | "loading" } | { status: "error"; message: string } | ReadyView;
+type UnsupportedView = { status: "error"; label: string };
+type ViewState = { status: "idle" | "loading" } | UnsupportedView | ReadyView;
 type ConversationItem =
   | { id: string; role: "assistant"; kind: "text" | "loading" | "error"; text: string }
   | { id: string; role: "user"; kind: "text"; text: string }
@@ -48,11 +49,12 @@ function App() {
         viewportError: typeof response.viewportError === "string" ? response.viewportError : undefined
       });
       setConversation([]);
-    } catch (error) {
+    } catch {
       if (serial !== requestSerial.current) return;
-      const message = error instanceof Error ? error.message : "Nudge cannot inspect this page.";
-      setState({ status: "error", message });
-      setConversation([{ id: crypto.randomUUID(), role: "assistant", kind: "error", text: message }]);
+      // Browser-owned pages cannot be inspected. Keep that state in the composer
+      // instead of adding an alarming conversation message.
+      setState({ status: "error", label: "This page isn’t available to Nudge" });
+      setConversation([]);
     }
   }, []);
 
@@ -112,7 +114,8 @@ function App() {
       {conversation.map((item) => item.kind === "proposal" ? <ProposalBubble key={item.id} proposal={item.proposal} onExecute={executeProposal} /> : item.role === "user" ? <div className="message user" key={item.id}>{item.text}</div> : <AssistantBubble key={item.id} kind={item.kind === "error" ? "error" : item.kind === "loading" ? "loading" : undefined}>{item.text}</AssistantBubble>)}
     </section>
     <form className="composer" onSubmit={(event) => void sendTask(event)}>
-      {isReady && <div className="composer-context"><span className="composer-favicon">{state.page.faviconUrl ? <img src={state.page.faviconUrl} alt="" /> : state.page.hostname.slice(0, 1).toUpperCase()}</span><span>Sharing “{shortTitle(state.page.title)}”</span></div>}
+      {isReady && <div className="composer-context"><span className="composer-favicon">{state.page.faviconUrl ? <img src={state.page.faviconUrl} alt="" /> : state.page.hostname.slice(0, 1).toUpperCase()}</span><span>Nudging “{shortTitle(state.page.title)}”</span></div>}
+      {state.status === "error" && <div className="composer-context unavailable-context"><PcNoEntry /><span>{state.label}</span></div>}
       <div className="composer-input">
         <textarea aria-label="Describe what you want to do" value={draft} maxLength={1_000} rows={1} disabled={!isReady} placeholder={isReady ? "Ask Nudge about this page" : "Waiting for a supported page"} onChange={(event) => setDraft(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); event.currentTarget.form?.requestSubmit(); } }} />
         <button className="send" type="submit" disabled={!isReady || !draft.trim()} aria-label="Send task">
@@ -156,4 +159,5 @@ function ProposalBubble({ proposal, onExecute }: { proposal: NextActionResponse;
 function piiLabel(kind: RedactionDetail["kind"]): string { return ({ password: "Password", email: "Email", phone: "Phone", government_id: "Government ID", payment: "Payment detail", account_number: "Account number", address: "Address", date_of_birth: "Date of birth", token: "Token", user_marked: "Marked private" } as const)[kind]; }
 function safeHostname(origin: string) { try { return new URL(origin).hostname; } catch { return origin; } }
 function shortTitle(title: string) { return title.length > 31 ? `${title.slice(0, 30).trimEnd()}…` : title; }
+function PcNoEntry() { return <svg className="unavailable-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">{/* Iconoir pc-no-entry — https://iconoir.com/icon/pc-no-entry */}<path d="M7 22L17 22" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" /><path d="M2 17V4C2 2.89543 2.89543 2 4 2H20C21.1046 2 22 2.89543 22 4V17C22 18.1046 21.1046 19 20 19H4C2.89543 19 2 18.1046 2 17Z" stroke="currentColor" /><path d="M14.8566 7.7C14.1306 6.95946 13.119 6.5 12 6.5C9.79086 6.5 8 8.29086 8 10.5C8 11.5902 8.43613 12.5785 9.14343 13.3M14.8566 7.7C15.5639 8.4215 16 9.40982 16 10.5C16 12.7091 14.2091 14.5 12 14.5C10.881 14.5 9.8694 14.0405 9.14343 13.3M14.8566 7.7L9.14343 13.3" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" /></svg>; }
 createRoot(document.getElementById("root")!).render(<StrictMode><App /></StrictMode>);

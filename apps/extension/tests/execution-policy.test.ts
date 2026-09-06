@@ -30,8 +30,22 @@ describe("local execution policy", () => {
     expect(evaluateExecutionPolicy(request("el_0002"), context)).toMatchObject({ allowed: false, outcome: "high_impact_action" });
   });
 
-  it("does not execute model-proposed typing", () => {
+  it("does not execute model-proposed typing into a sensitive field", () => {
     const typing: ExecutionRequest = { action: { type: "type", targetId: "el_0003" }, expectedPageOrigin: "https://example.gov", expectedTarget: context.page.elements[2] };
-    expect(evaluateExecutionPolicy(typing, context)).toMatchObject({ allowed: false, outcome: "unsupported_action" });
+    expect(evaluateExecutionPolicy(typing, context)).toMatchObject({ allowed: false, outcome: "sensitive_target" });
+  });
+
+  it("allows only user-supplied local text in a verified non-sensitive field", () => {
+    const safeContext: SanitizedPageContext = {
+      ...context,
+      page: { ...context.page, elements: [{ id: "el_0004", role: "textbox", name: "Search services", state: { visible: true, enabled: true } }] }
+    };
+    const typing: ExecutionRequest = {
+      action: { type: "type", targetId: "el_0004" },
+      expectedPageOrigin: "https://example.gov",
+      expectedTarget: safeContext.page.elements[0],
+      localValue: "Scholarship"
+    };
+    expect(evaluateExecutionPolicy(typing, safeContext)).toEqual({ allowed: true });
   });
 });

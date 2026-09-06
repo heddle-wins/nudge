@@ -163,7 +163,7 @@ async function dispatchApprovedAction(tabId: number, request: Parameters<typeof 
   return executionResultSchema.parse(injection.result);
 }
 
-async function executeAction(tabId: number, rawProposal: unknown, rawContext: unknown) {
+async function executeAction(tabId: number, rawProposal: unknown, rawContext: unknown, rawLocalValue: unknown) {
   const proposal = nextActionResponseSchema.parse(rawProposal);
   const context = sanitizedPageContextSchema.parse(rawContext) as SanitizedPageContext;
   if (!proposal.requiresConfirmation) throw new Error("Nudge requires an explicit confirmation before execution.");
@@ -175,7 +175,8 @@ async function executeAction(tabId: number, rawProposal: unknown, rawContext: un
   const expectedTarget = proposal.action.targetId
     ? context.page.elements.find((element) => element.id === proposal.action.targetId)
     : undefined;
-  const request = executionRequestSchema.parse({ action: proposal.action, expectedPageOrigin, ...(expectedTarget ? { expectedTarget } : {}) });
+  const localValue = proposal.action.type === "type" && typeof rawLocalValue === "string" ? rawLocalValue : undefined;
+  const request = executionRequestSchema.parse({ action: proposal.action, expectedPageOrigin, ...(expectedTarget ? { expectedTarget } : {}), ...(localValue ? { localValue } : {}) });
   const policy = evaluateExecutionPolicy(request, context);
   const result: ExecutionResult = policy.allowed
     ? await dispatchApprovedAction(tabId, request)
@@ -222,7 +223,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message?.type !== "NUDGE_EXECUTE_ACTION" || typeof message.tabId !== "number") return;
-  executeAction(message.tabId, message.proposal, message.context).then(
+  executeAction(message.tabId, message.proposal, message.context, message.localValue).then(
     ({ result, audit }) => sendResponse({ ok: true, result, audit }),
     (error) => sendResponse({ ok: false, error: error instanceof Error ? error.message : "Nudge could not complete the approved action." })
   );

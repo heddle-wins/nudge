@@ -12,7 +12,7 @@ export function evaluateExecutionPolicy(request: ExecutionRequest, context: Sani
   const { action } = request;
 
   if (action.type === "report_result") return { allowed: true };
-  if (action.type !== "click" && action.type !== "scroll" && action.type !== "select") {
+  if (action.type !== "click" && action.type !== "scroll" && action.type !== "select" && action.type !== "type") {
     return { allowed: false, outcome: "unsupported_action", message: "Nudge does not execute this action type. Continue directly in the page." };
   }
 
@@ -26,6 +26,14 @@ export function evaluateExecutionPolicy(request: ExecutionRequest, context: Sani
   }
   if (HIGH_IMPACT_WORDS.test(targetDescription)) {
     return { allowed: false, outcome: "high_impact_action", message: "This appears to be a high-impact action. Complete it directly in the page." };
+  }
+  if (action.type === "type") {
+    if (!request.localValue?.trim()) {
+      return { allowed: false, outcome: "unsupported_action", message: "Enter the exact text locally before Nudge can fill this field." };
+    }
+    if (target.role !== "textbox" && target.role !== "combobox") {
+      return { allowed: false, outcome: "unsupported_action", message: "Nudge can only type into a verified text field." };
+    }
   }
   return { allowed: true };
 }

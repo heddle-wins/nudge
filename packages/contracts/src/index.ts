@@ -100,14 +100,16 @@ export type NextActionResponse = z.infer<typeof nextActionResponseSchema>;
 
 /**
  * This is produced inside the extension after a user confirms a proposal. It
- * deliberately contains no page text, form value, selector, URL path, or
- * provider supplied code. The content script resolves the target again from
- * the live page before doing anything.
+ * deliberately contains no page text, selector, URL path, or provider
+ * supplied code. `localValue` is user-entered in the extension UI and is used
+ * only inside the browser; it is never sent to the reasoning server, persisted
+ * in the audit trail, or included in subsequent outbound context.
  */
 export const executionRequestSchema = z.object({
   action: proposedActionSchema,
   expectedPageOrigin: z.string().url(),
-  expectedTarget: sanitizedElementSchema.optional()
+  expectedTarget: sanitizedElementSchema.optional(),
+  localValue: z.string().min(1).max(500).optional()
 }).strict();
 
 export type ExecutionRequest = z.infer<typeof executionRequestSchema>;

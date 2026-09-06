@@ -1,9 +1,11 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { executeApprovedAction } from "../src/content/execute";
+import { collectRawPageContext } from "../src/content/collect";
 import type { ExecutionRequest } from "@nudge/contracts";
+import { createOutboundSafeContext } from "@nudge/privacy-core";
 
-function request(type: "click" | "select", role: "button" | "link" | "combobox", name: string, extra: Partial<ExecutionRequest["action"]> = {}): ExecutionRequest {
+function request(type: "click" | "select" | "type", role: "button" | "link" | "combobox" | "textbox", name: string, extra: Partial<ExecutionRequest["action"]> = {}): ExecutionRequest {
   return {
     action: { type, targetId: "el_0001", ...extra },
     expectedPageOrigin: window.location.origin,
@@ -44,5 +46,16 @@ describe("approved browser executor", () => {
   it("pauses when a CAPTCHA is present", () => {
     document.body.innerHTML = "<p>Complete CAPTCHA verification</p><button>Track application</button>";
     expect(executeApprovedAction(request("click", "button", "Track application"))).toMatchObject({ status: "blocked", outcome: "mfa_or_captcha" });
+  });
+
+  it("enters only user-provided local text and keeps it out of later outbound context", () => {
+    document.body.innerHTML = "<input placeholder='Search a service' />";
+    const input = document.querySelector("input")!;
+    const typing = { ...request("type", "textbox", "Search a service"), localValue: "Scholarship" };
+
+    expect(executeApprovedAction(typing)).toMatchObject({ status: "completed", outcome: "action_completed" });
+    expect(input.value).toBe("Scholarship");
+    expect(input.getAttribute("data-nudge-private")).toBe("true");
+    expect(JSON.stringify(createOutboundSafeContext(collectRawPageContext()))).not.toContain("Scholarship");
   });
 });

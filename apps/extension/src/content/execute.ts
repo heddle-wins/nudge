@@ -64,7 +64,7 @@ export function executeApprovedAction(request: ExecutionRequest): ExecutionResul
     window.scrollBy({ top: request.action.direction === "up" ? -Math.max(240, window.innerHeight * 0.7) : Math.max(240, window.innerHeight * 0.7), behavior: "smooth" });
     return result("completed", "action_completed", "Nudge scrolled the page after your confirmation.");
   }
-  if (request.action.type !== "click" && request.action.type !== "select") {
+  if (request.action.type !== "click" && request.action.type !== "select" && request.action.type !== "type") {
     return result("blocked", "unsupported_action", "Nudge does not execute this action type. Continue directly in the page.");
   }
 
@@ -77,6 +77,25 @@ export function executeApprovedAction(request: ExecutionRequest): ExecutionResul
   }
   if (roleFor(target) !== request.expectedTarget.role || accessibleName(target) !== request.expectedTarget.name) {
     return result("blocked", "stale_target", "The proposed control changed after the proposal. Inspect again before continuing.");
+  }
+
+  if (request.action.type === "type") {
+    if (!(target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) || !request.localValue?.trim()) {
+      return result("blocked", "unsupported_action", "Nudge can only enter your local text into a verified text field.");
+    }
+    const forbiddenAutocomplete = /(?:password|one-time-code|cc-|transaction|webauthn)/i;
+    const isSafeInput = target instanceof HTMLTextAreaElement || /^(?:text|search)$/i.test(target.type);
+    if (forbiddenAutocomplete.test(target.autocomplete) || !isSafeInput || highImpactText.test(accessibleName(target))) {
+      return result("blocked", "sensitive_target", "Nudge will not enter text into an authentication, payment, or sensitive field.");
+    }
+    const prototype = target instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+    const setter = Object.getOwnPropertyDescriptor(prototype, "value")?.set;
+    setter?.call(target, request.localValue);
+    target.dispatchEvent(new Event("input", { bubbles: true }));
+    target.dispatchEvent(new Event("change", { bubbles: true }));
+    // The user's local entry must not become part of a later server request.
+    target.setAttribute("data-nudge-private", "true");
+    return result("completed", "action_completed", "Nudge entered your local text. The value remains private and will not be sent to the reasoning server.");
   }
 
   if (request.action.type === "click") {

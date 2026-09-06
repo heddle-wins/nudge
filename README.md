@@ -12,7 +12,7 @@ We see a genuine and growing problem: people should be able to benefit from capa
 
 Most browser agents begin by sending a page or screenshot to an AI model. Nudge begins with a different question: **what must never leave the browser?** It sanitizes context on the user’s device, then asks a hosted reasoning service to propose a safe, structured next action.
 
-**Status:** Local privacy firewall, schema-enforced hosted reasoning, and confirmed safe-action execution complete
+**Status:** Local privacy firewall, schema-enforced hosted reasoning, confirmed safe actions, and controlled SIH demo flow complete
 
 ---
 
@@ -164,6 +164,16 @@ To try the extension in Chrome, load `apps/extension/dist` as an unpacked extens
 
 The privacy tests use deliberately fake PII and verify that emails, phones, Aadhaar-like IDs, PANs, card and account numbers, passwords, custom user-marked values, and URL query data do not appear in the generated context.
 
+## Try the controlled demo
+
+Nudge includes a fictional public-service portal with fake Indian PII, safe steps, and a deliberately restricted OTP/submit step. It is designed for a clear SIH demonstration without using a real account.
+
+```bash
+pnpm demo:portal
+```
+
+Open `http://127.0.0.1:4173`, reload the unpacked extension, and follow the [Phase 5 demo kit](docs/phase-five-demo.md). For a `type` proposal, the model identifies a field only: you enter the exact text in Nudge’s local input, then confirm. That text is marked private immediately and never becomes reasoning context.
+
 ## Roadmap
 
 - [x] Capture SIH26171 and define the Nudge product boundary
@@ -172,8 +182,9 @@ The privacy tests use deliberately fake PII and verify that emails, phones, Aadh
 - [x] Build the local DOM/a11y inventory and privacy firewall
 - [x] Build the schema-enforced Nudge reasoning server
 - [x] Add locally validated browser actions, consent flows, and a local audit timeline
-- [ ] Demonstrate a complete public-service workflow with visible redaction
-- [ ] Measure accuracy, PII detection/redaction quality, resource usage, and latency
+- [x] Demonstrate a complete controlled public-service workflow with visible redaction
+- [x] Add controlled privacy/action fixtures and a reproducible measurement protocol
+- [ ] Package the reproducible deployment and record the final fallback demo
 
 ## Engineering commitments
 
@@ -189,6 +200,8 @@ Nudge is being built with these non-negotiable constraints:
 ## Project documentation
 
 - [SIH26171 problem statement](problem-statement.md) — the official problem statement captured for this project.
+- [Phase 5 demo kit](docs/phase-five-demo.md) — controlled workflow, measurements, and SIH presentation script.
+- [SevaSetu demo portal](demo/public-service-portal/README.md) — fictional local portal for testing Nudge safely.
 
 ## Contributing
 

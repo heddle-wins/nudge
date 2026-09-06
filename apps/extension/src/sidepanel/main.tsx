@@ -95,12 +95,12 @@ function App() {
     }
   }
 
-  async function executeProposal(context: SanitizedPageContext, proposal: NextActionResponse) {
+  async function executeProposal(context: SanitizedPageContext, proposal: NextActionResponse, localValue?: string) {
     setExecutionState({ status: "loading" });
     try {
       const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
       if (!tab.id) throw new Error("No active browser tab was found.");
-      const response = await chrome.runtime.sendMessage({ type: "NUDGE_EXECUTE_ACTION", tabId: tab.id, proposal, context });
+      const response = await chrome.runtime.sendMessage({ type: "NUDGE_EXECUTE_ACTION", tabId: tab.id, proposal, context, ...(localValue ? { localValue } : {}) });
       if (!response?.ok) throw new Error(response?.error ?? "Nudge could not complete the approved action.");
       setExecutionState({ status: "ready", result: response.result as ExecutionResult });
       await loadAudit();
@@ -112,7 +112,7 @@ function App() {
   return (
     <main>
       <header>
-        <p className="eyebrow">Nudge · Phase 4</p>
+        <p className="eyebrow">Nudge · Phase 5 demo</p>
         <h1>Private context, locally.</h1>
         <p className="subtitle">Inspect locally, then ask your reasoning server for one safe next-action proposal.</p>
       </header>
@@ -239,7 +239,7 @@ function ReasoningControl({
   onServerUrlChange: (value: string) => void;
   onRequest: (context: SanitizedPageContext) => Promise<void>;
   executionState: ExecutionState;
-  onExecute: (context: SanitizedPageContext, proposal: NextActionResponse) => Promise<void>;
+  onExecute: (context: SanitizedPageContext, proposal: NextActionResponse, localValue?: string) => Promise<void>;
 }) {
   return (
     <section className="reasoning" aria-live="polite">
@@ -257,22 +257,30 @@ function ReasoningControl({
         {proposalState.status === "loading" ? "Requesting safe proposal…" : "Request next action"}
       </button>
       {proposalState.status === "error" && <p className="notice error">{proposalState.message}</p>}
-      {proposalState.status === "ready" && <Proposal proposal={proposalState.proposal} executionState={executionState} onExecute={() => onExecute(context, proposalState.proposal)} />}
+      {proposalState.status === "ready" && <Proposal proposal={proposalState.proposal} executionState={executionState} onExecute={(localValue) => onExecute(context, proposalState.proposal, localValue)} />}
     </section>
   );
 }
 
-function Proposal({ proposal, executionState, onExecute }: { proposal: NextActionResponse; executionState: ExecutionState; onExecute: () => Promise<void> }) {
+function Proposal({ proposal, executionState, onExecute }: { proposal: NextActionResponse; executionState: ExecutionState; onExecute: (localValue?: string) => Promise<void> }) {
+  const [localValue, setLocalValue] = useState("");
   const target = proposal.action.targetId ? ` on ${proposal.action.targetId}` : "";
+  const needsLocalText = proposal.action.type === "type";
+  const canExecute = !needsLocalText || Boolean(localValue.trim());
   return <section className="proposal">
     <p className="eyebrow">Proposed action</p>
     <p className="proposal-action">{proposal.action.type.replaceAll("_", " ")}{target}</p>
-    {proposal.action.message && <p>{proposal.action.message}</p>}
+    {proposal.action.message && !needsLocalText && <p>{proposal.action.message}</p>}
     <p className="control-copy">{proposal.rationale}</p>
     <p className="control-copy">Confidence {Math.round(proposal.confidence * 100)}% · Local confirmation required</p>
     <p className="notice">Nudge will re-check the live page locally before acting. It will pause for stale controls, MFA/CAPTCHA, sensitive fields, external navigation, and high-impact actions.</p>
-    <button className="primary confirm" type="button" onClick={() => void onExecute()} disabled={executionState.status === "loading" || executionState.status === "ready"}>
-      {executionState.status === "loading" ? "Re-checking and executing…" : "Confirm and execute"}
+    {needsLocalText && <label className="local-input">
+      <span>Text to enter locally</span>
+      <input value={localValue} maxLength={500} autoComplete="off" placeholder="Enter the exact text yourself" onChange={(event) => setLocalValue(event.target.value)} />
+      <small>This value stays in Nudge. It is not sent to the server or kept in the audit trail.</small>
+    </label>}
+    <button className="primary confirm" type="button" onClick={() => void onExecute(needsLocalText ? localValue : undefined)} disabled={!canExecute || executionState.status === "loading" || executionState.status === "ready"}>
+      {executionState.status === "loading" ? "Re-checking and executing…" : needsLocalText ? "Confirm local text and enter" : "Confirm and execute"}
     </button>
     {executionState.status === "error" && <p className="notice error">{executionState.message}</p>}
     {executionState.status === "ready" && <p className={`notice ${executionState.result.status === "completed" ? "success" : "error"}`}>{executionState.result.message}</p>}

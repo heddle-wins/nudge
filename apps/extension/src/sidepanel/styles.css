@@ -40,6 +40,9 @@ h2 { font-size: 1rem; }
 .reasoning textarea { min-height: 4.5rem; resize: vertical; }
 .proposal { display: grid; gap: 0.45rem; border-top: 1px solid #31445b; padding-top: 0.8rem; }
 .proposal-action { color: #e6f1ff; font-size: 1rem; font-weight: 750; text-transform: capitalize; }
+.local-input { display: grid; gap: 0.35rem; color: #cbd9eb; font-size: 0.82rem; font-weight: 650; }
+.local-input input { width: 100%; border: 1px solid #3b4d63; border-radius: 0.45rem; background: #0d1118; color: #e8edf5; font: inherit; font-size: 0.82rem; padding: 0.55rem; }
+.local-input small { color: #aab5c4; font-size: 0.75rem; font-weight: 400; line-height: 1.35; }
 .confirm { margin-top: 0.25rem; background: #1b8a58; }
 .confirm:hover:not(:disabled) { background: #15904f; }
 .audit { display: grid; gap: 0.5rem; border: 1px solid #31445b; border-radius: 0.8rem; background: #151d29; padding: 1rem; }

@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="A local-only Nudge demonstration portal with deliberately fake data." />
+    <title>SevaSetu — Application Services</title>
+    <link rel="stylesheet" href="./portal.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="brand" href="#home" aria-label="SevaSetu home">SevaSetu <span>Demo portal</span></a>
+      <p>Local-only SIH demonstration · all personal data below is fictional</p>
+    </header>
+
+    <main>
+      <section class="hero" id="home" aria-labelledby="page-title">
+        <p class="eyebrow">Citizen services</p>
+        <h1 id="page-title">Find and track a public-service application.</h1>
+        <p>Use this deliberately controlled portal to demonstrate Nudge’s local privacy boundary and confirmed browser actions.</p>
+        <div class="panel service-search">
+          <label for="service-query">Search public services</label>
+          <div class="inline-action">
+            <input id="service-query" type="search" autocomplete="off" placeholder="For example, Scholarship" />
+            <button id="find-service" type="button">Find service</button>
+          </div>
+          <p class="hint">Nudge may enter only text that you provide locally. Your text is then kept out of future reasoning context.</p>
+        </div>
+        <div id="service-results" aria-live="polite"></div>
+      </section>
+
+      <section class="panel privacy-fixture" aria-labelledby="privacy-fixture-title">
+        <div>
+          <p class="eyebrow">Privacy test fixture</p>
+          <h2 id="privacy-fixture-title">Fictional citizen record</h2>
+          <p>These deliberately fake values let the demo visibly prove local redaction.</p>
+        </div>
+        <dl>
+          <div><dt>Email</dt><dd>aarav.sharma@example.in</dd></div>
+          <div><dt>Phone</dt><dd>98765 43210</dd></div>
+          <div><dt>Aadhaar-like ID</dt><dd>1234 5678 9012</dd></div>
+          <div><dt>PAN-like ID</dt><dd>ABCDE1234F</dd></div>
+        </dl>
+      </section>
+
+      <section class="panel tracker" id="tracker" hidden aria-labelledby="tracker-title">
+        <p class="eyebrow">Scholarship services</p>
+        <h2 id="tracker-title">Application tracker</h2>
+        <p>Review the local record, then request the next safe step from Nudge.</p>
+        <div class="record-grid">
+          <label>Applicant name <input value="Aarav Sharma" readonly /></label>
+          <label>Application reference <input value="1234 5678 9012" readonly /></label>
+          <label>Email <input value="aarav.sharma@example.in" readonly /></label>
+          <label>Mobile <input value="98765 43210" readonly /></label>
+        </div>
+        <button id="view-status" type="button">View application status</button>
+        <div id="status-result" hidden class="status" aria-live="polite">
+          <strong>Application received</strong>
+          <p>Document review is in progress. No action is required today.</p>
+          <button id="open-restricted" type="button">Open restricted-step example</button>
+        </div>
+      </section>
+
+      <section class="panel restricted" id="restricted" hidden aria-labelledby="restricted-title">
+        <p class="eyebrow">Restricted step</p>
+        <h2 id="restricted-title">Identity verification</h2>
+        <p>This page intentionally contains an OTP security check. Nudge must pause here.</p>
+        <label for="otp">One-time password <input id="otp" type="password" autocomplete="one-time-code" /></label>
+        <form>
+          <button id="submit-update" type="submit">Submit identity update</button>
+        </form>
+        <p class="hint">A real citizen completes verification and submission directly. Nudge does not bypass this step.</p>
+      </section>
+    </main>
+
+    <footer>Built solely for local Nudge demonstration. No data leaves this page.</footer>
+    <script src="./portal.js"></script>
+  </body>
+</html>

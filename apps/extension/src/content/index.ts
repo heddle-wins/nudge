@@ -8,7 +8,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   try {
     const raw = collectRawPageContext();
     const inspection = createPrivacyInspection(raw);
-    sendResponse({ ok: true, context: createOutboundSafeContext(raw), redactionDetails: inspection.redactionDetails });
+    sendResponse({ ok: true, context: createOutboundSafeContext(raw), redactionDetails: inspection.redactionDetails, visualRedactionCount: inspection.visualRedactions.length });
   } catch (error) {
     sendResponse({ ok: false, error: error instanceof Error ? error.message : "Unable to inspect this page." });
   }

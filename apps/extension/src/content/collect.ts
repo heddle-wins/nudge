@@ -61,6 +61,8 @@ export function collectRawPageContext(): RawPageContext {
       name: accessibleName(element),
       ...(field ? { value: element.value } : { text: element.textContent?.trim().slice(0, 2_000) }),
       ...(input ? { inputType: input.type, autocomplete: input.autocomplete } : {}),
+      ...(element.closest("[data-nudge-private='true']") ? { userMarkedPrivate: true } : {}),
+      bounds: boundsFor(element),
       state: {
         enabled: !(element as HTMLButtonElement).disabled,
         visible: true,
@@ -69,11 +71,71 @@ export function collectRawPageContext(): RawPageContext {
     };
   }
 
+  function boundsFor(element: HTMLElement) {
+    const rect = element.getBoundingClientRect();
+    const x = Math.max(0, rect.left);
+    const y = Math.max(0, rect.top);
+    const right = Math.min(window.innerWidth, rect.right);
+    const bottom = Math.min(window.innerHeight, rect.bottom);
+    return { x, y, width: Math.max(0, right - x), height: Math.max(0, bottom - y) };
+  }
+
   const selectors = "button, a[href], input, textarea, select, [role='button'], [role='link'], [role='combobox'], h1, h2, h3";
   const elements = [...document.querySelectorAll<HTMLElement>(selectors)]
     .filter(isVisible)
     .slice(0, 150)
     .map(rawElementFrom);
 
-  return { url: window.location.href, title: document.title, elements };
+  const visualElements: RawPageElement[] = [];
+  const textWalker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+  let node: Node | null;
+  let visualId = 1;
+  let visualScanComplete = true;
+  while ((node = textWalker.nextNode())) {
+    if (visualElements.length >= 2_000) {
+      visualScanComplete = false;
+      break;
+    }
+    const parent = node.parentElement;
+    const text = node.textContent?.trim();
+    if (!parent || !text || text.length < 3 || !isVisible(parent)) continue;
+    const bounds = boundsFor(parent);
+    if (!bounds.width || !bounds.height) continue;
+    visualElements.push({
+      id: `visual_${visualId.toString(36).padStart(4, "0")}`,
+      role: "text",
+      name: "Visible page text",
+      text: text.slice(0, 2_000),
+      ...(parent.closest("[data-nudge-private='true']") ? { userMarkedPrivate: true } : {}),
+      bounds,
+      state: { enabled: true, visible: true }
+    });
+    visualId += 1;
+  }
+
+  return {
+    url: window.location.href,
+    title: document.title,
+    elements,
+    visualElements,
+    viewport: { width: window.innerWidth, height: window.innerHeight },
+    visualScanComplete,
+    hasUninspectableVisualContent: [...document.querySelectorAll<HTMLElement>("img, canvas, embed, object, iframe")]
+      .some(isVisible)
+  };
+}
+
+/** Also self-contained so it works for pages opened before Nudge was installed. */
+export function markElementPrivate(elementId: string): boolean {
+  const selectors = "button, a[href], input, textarea, select, [role='button'], [role='link'], [role='combobox'], h1, h2, h3";
+  const candidates = [...document.querySelectorAll<HTMLElement>(selectors)].filter((element) => {
+    const style = window.getComputedStyle(element);
+    const bounds = element.getBoundingClientRect();
+    return style.display !== "none" && style.visibility !== "hidden" && bounds.width > 0 && bounds.height > 0;
+  });
+  const index = Number.parseInt(elementId.replace(/^el_/, ""), 36) - 1;
+  const element = candidates[index];
+  if (!element) return false;
+  element.setAttribute("data-nudge-private", "true");
+  return true;
 }

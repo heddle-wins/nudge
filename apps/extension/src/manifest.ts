@@ -3,7 +3,7 @@ import type { ManifestV3Export } from "@crxjs/vite-plugin";
 const manifest: ManifestV3Export = {
   manifest_version: 3,
   name: "Nudge",
-  version: "0.1.0",
+  version: "0.2.0",
   description: "Privacy-first browser automation by Heddle.",
   permissions: ["activeTab", "tabs", "sidePanel", "scripting"],
   host_permissions: ["<all_urls>"],

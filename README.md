@@ -1,8 +1,8 @@
 # Nudge <sub>by <img src="docs/assets/heddle-mark.svg" width="22" height="20" alt="" style="vertical-align: -0.06em;" /> Heddle</sub>
 
-> ## Privacy is enforced before intelligence is invoked.
->
-> **Nudge is a local-first browser agent that helps people complete web workflows without handing their private screen, form data, or credentials to an AI provider.**
+## Privacy is enforced before intelligence is invoked.
+
+**Nudge is a local-first browser agent that helps people complete web workflows without handing their private screen, form data, or credentials to an AI provider.**
 
 Nudge is a project by **Heddle**, built in public. [Smart India Hackathon 2026 problem statement SIH26171](problem-statement.md), *On-device Visual Perception for Light-weight Browser Agents*, gave us a precise challenge—but it is not the reason this project exists.
 

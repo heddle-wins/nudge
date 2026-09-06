@@ -1,0 +1,15 @@
+{
+  "name": "nudge",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Privacy-first browser automation by Heddle.",
+  "packageManager": "pnpm@9.15.5",
+  "scripts": {
+    "build": "turbo run build",
+    "test": "turbo run test",
+    "typecheck": "turbo run typecheck"
+  },
+  "devDependencies": {
+    "turbo": "^2.3.3"
+  }
+}

@@ -147,6 +147,21 @@ The extension resolves `targetId` against its current local page inventory. Miss
 - **Quality:** Vitest, Playwright, pytest, privacy-regression fixtures
 - **Deployment:** Docker Compose for a reproducible demonstration environment
 
+## Develop Phase 1
+
+Phase 1 is intentionally local-only: it has no API, LLM provider, database, or external network request.
+
+```bash
+pnpm install
+pnpm test
+pnpm typecheck
+pnpm build
+```
+
+To try the extension in Chrome, load `apps/extension/dist` as an unpacked extension from `chrome://extensions`, open the Nudge side panel, and select **Inspect active page**. The panel displays the sanitized browser context that would be eligible for a future server request.
+
+The privacy tests use deliberately fake PII and verify that email, phone number, Aadhaar-like ID, password, and URL query data do not appear in the generated context.
+
 ## Roadmap
 
 - [x] Capture SIH26171 and define the Nudge product boundary

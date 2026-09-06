@@ -1,4 +1,4 @@
-# Nudge <sub>by <img src="https://www.heddle.so/heddle-icon-lite.svg" width="22" height="20" alt="" style="vertical-align: -0.06em;" /> Heddle</sub>
+# Nudge <sub>by <img src="docs/assets/heddle-mark.svg" width="22" height="20" alt="" style="vertical-align: -0.06em;" /> Heddle</sub>
 
 > ## Privacy is enforced before intelligence is invoked.
 >

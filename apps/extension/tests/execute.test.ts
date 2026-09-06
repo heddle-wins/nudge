@@ -44,8 +44,13 @@ describe("approved browser executor", () => {
   });
 
   it("pauses when a CAPTCHA is present", () => {
-    document.body.innerHTML = "<p>Complete CAPTCHA verification</p><button>Track application</button>";
+    document.body.innerHTML = "<p>Complete CAPTCHA verification</p><input name='verification' /><button>Track application</button>";
     expect(executeApprovedAction(request("click", "button", "Track application"))).toMatchObject({ status: "blocked", outcome: "mfa_or_captcha" });
+  });
+
+  it("does not treat an unrelated CAPTCHA mention as a verification gate", () => {
+    document.body.innerHTML = "<p>Our help centre explains CAPTCHA safety.</p><button>Refresh inbox</button>";
+    expect(executeApprovedAction(request("click", "button", "Refresh inbox"))).toMatchObject({ status: "completed", outcome: "action_completed" });
   });
 
   it("enters only user-provided local text and keeps it out of later outbound context", () => {

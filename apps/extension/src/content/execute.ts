@@ -46,9 +46,18 @@ export function executeApprovedAction(request: ExecutionRequest): ExecutionResul
   }
 
   function mfaOrCaptchaPresent(): boolean {
-    const text = (document.body?.innerText || document.body?.textContent || "").slice(0, 50_000);
-    return /\b(?:captcha|recaptcha|hcaptcha|one[ -]?time\s+(?:password|code)|otp|two[ -]?factor|multi[ -]?factor|authentication\s+code)\b/i.test(text)
-      || Boolean(document.querySelector("iframe[src*='captcha' i], [class*='captcha' i], [id*='captcha' i]"));
+    // A bare word in an ad, help article, or footer is not an MFA/CAPTCHA gate.
+    // Pause only for known challenge widgets, OTP-specific inputs, or an explicit
+    // user-facing verification instruction paired with an input control.
+    const challengeWidgets = [...document.querySelectorAll<HTMLElement>("iframe[src*='recaptcha' i], iframe[src*='hcaptcha' i], iframe[src*='challenges.cloudflare.com' i], .g-recaptcha, .h-captcha, .cf-turnstile, [data-sitekey]")];
+    if (challengeWidgets.some(isVisible)) return true;
+
+    const fields = [...document.querySelectorAll<HTMLInputElement>("input")].filter(isVisible);
+    if (fields.some((field) => /one-time-code/i.test(field.autocomplete) || /^(?:otp|verification|auth(?:entication)?[-_]?code)$/i.test(field.name))) return true;
+
+    const visibleText = (document.body?.innerText || document.body?.textContent || "").slice(0, 50_000);
+    const explicitChallenge = /\b(?:enter|provide|complete|solve|verify)\b[^.]{0,80}\b(?:one[ -]?time\s+(?:password|code)|otp|verification\s+code|captcha|recaptcha|hcaptcha)\b/i;
+    return explicitChallenge.test(visibleText) && fields.length > 0;
   }
 
   if (window.location.origin !== request.expectedPageOrigin) {

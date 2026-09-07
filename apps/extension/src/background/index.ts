@@ -87,7 +87,7 @@ async function createRedactedViewport(tabId: number) {
       height: viewport?.height ?? target.height ?? 1
     }),
     visualRegions,
-    visualScan: { scanMs: visualScan.scanMs, backends: visualScan.backends, residueScanMs: residueScan.scanMs }
+    visualScan: { scanMs: visualScan.scanMs, modelLoadMs: visualScan.modelLoadMs, backends: visualScan.backends, residueScanMs: residueScan.scanMs }
   };
 }
 

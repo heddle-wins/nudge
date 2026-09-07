@@ -107,7 +107,7 @@ export function decodeYuNet(
 export async function detectFaces(
   screenshotDataUrl: string,
   session: ort.InferenceSession
-): Promise<FaceRegion[]> {
+): Promise<{ faces: FaceRegion[]; image: { width: number; height: number } }> {
   const response = await fetch(screenshotDataUrl);
   const bitmap = await createImageBitmap(await response.blob());
   const screenshot = { width: bitmap.width, height: bitmap.height };
@@ -118,5 +118,5 @@ export async function detectFaces(
   const pixels = context.getImageData(0, 0, INPUT_SIZE, INPUT_SIZE);
   bitmap.close();
   const outputs = await session.run({ input: preprocessYuNet(pixels) });
-  return decodeYuNet(outputs, screenshot);
+  return { faces: decodeYuNet(outputs, screenshot), image: screenshot };
 }

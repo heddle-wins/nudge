@@ -32,6 +32,8 @@ export type VisualRedactionRegion = {
   width: number;
   height: number;
   kind: PiiKind;
+  /** DOM regions use viewport CSS pixels; model regions use captured-image pixels. */
+  coordinateSpace?: "viewport" | "image";
 };
 
 export type PrivacyInspection = {
@@ -54,6 +56,7 @@ export type SanitizationResult = {
 };
 
 const placeholder: Record<PiiKind, string> = {
+  face: "[FACE_REDACTED]",
   password: "[PASSWORD_REDACTED]",
   email: "[EMAIL_REDACTED]",
   phone: "[PHONE_REDACTED]",

@@ -1,11 +1,11 @@
 import { StrictMode, useCallback, useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
-import type { ExecutionResult, NextActionResponse, SafeScreenshot, SanitizedPageContext } from "@nudge/contracts";
+import type { ExecutionResult, NextActionResponse, PiiKind, SafeScreenshot, SanitizedPageContext } from "@nudge/contracts";
 import type { RedactionDetail } from "@nudge/privacy-core";
 import "./styles.css";
 
 type PageIdentity = { tabId: number; title: string; origin: string; hostname: string; faviconUrl: string };
-type ReadyView = { status: "ready"; context: SanitizedPageContext; redactionDetails: RedactionDetail[]; visualRedactionCount: number; screenshot?: SafeScreenshot; viewportError?: string; page: PageIdentity };
+type ReadyView = { status: "ready"; context: SanitizedPageContext; redactionDetails: RedactionDetail[]; visualRedactionCount: number; visualRedactionTypes: PiiKind[]; screenshot?: SafeScreenshot; viewportError?: string; page: PageIdentity };
 type UnsupportedView = { status: "error"; label: string };
 type ViewState = { status: "idle" | "loading" } | UnsupportedView | ReadyView;
 type ConversationItem =
@@ -46,6 +46,7 @@ function App() {
         status: "ready", context, page,
         redactionDetails: Array.isArray(response.redactionDetails) ? response.redactionDetails as RedactionDetail[] : [],
         visualRedactionCount: typeof response.visualRedactionCount === "number" ? response.visualRedactionCount : 0,
+        visualRedactionTypes: Array.isArray(response.visualRedactionTypes) ? response.visualRedactionTypes as PiiKind[] : [],
         screenshot: response.screenshot as SafeScreenshot | undefined,
         viewportError: typeof response.viewportError === "string" ? response.viewportError : undefined
       });
@@ -91,7 +92,7 @@ function App() {
     setConversation((items) => [...items, { id: crypto.randomUUID(), role: "user", kind: "text", text: task }, { id: loadingId, role: "assistant", kind: "loading", text: "Reviewing the protected page context…" }]);
     try {
       await chrome.storage.local.set({ nudgeReasoningServerUrl: serverUrl.trim() });
-      const response = await chrome.runtime.sendMessage({ type: "NUDGE_REQUEST_NEXT_ACTION", serverUrl: serverUrl.trim(), payload: { task, context: state.context, redactionManifest: { count: state.context.page.redactions.count, types: state.context.page.redactions.types, visualMaskCount: state.visualRedactionCount, renderer: "local-canvas-dom-v1" }, ...(state.screenshot ? { screenshot: state.screenshot } : {}) } });
+      const response = await chrome.runtime.sendMessage({ type: "NUDGE_REQUEST_NEXT_ACTION", serverUrl: serverUrl.trim(), payload: { task, context: state.context, redactionManifest: { count: state.context.page.redactions.count, types: [...new Set([...state.context.page.redactions.types, ...state.visualRedactionTypes])], visualMaskCount: state.visualRedactionCount, renderer: "local-canvas-dom-v1" }, ...(state.screenshot ? { screenshot: state.screenshot } : {}) } });
       if (!response?.ok) throw new Error(response?.error ?? "Nudge could not get a safe action proposal.");
       const proposal = response.proposal as NextActionResponse;
       setConversation((items) => items.map((item) => item.id === loadingId ? { id: loadingId, role: "assistant", kind: "proposal", proposal } : item));
@@ -187,7 +188,7 @@ function ProposalBubble({ proposal, onExecute }: { proposal: NextActionResponse;
     {result && <p className={`execution-result ${result.status === "completed" ? "success" : "error"}`}>{result.message}</p>}</div>;
 }
 
-function piiLabel(kind: RedactionDetail["kind"]): string { return ({ password: "Password", email: "Email", phone: "Phone", government_id: "Government ID", payment: "Payment detail", account_number: "Account number", address: "Address", date_of_birth: "Date of birth", token: "Token", user_marked: "Marked private" } as const)[kind]; }
+function piiLabel(kind: RedactionDetail["kind"]): string { return ({ face: "Face", password: "Password", email: "Email", phone: "Phone", government_id: "Government ID", payment: "Payment detail", account_number: "Account number", address: "Address", date_of_birth: "Date of birth", token: "Token", user_marked: "Marked private" } as const)[kind]; }
 function safeHostname(origin: string) { try { return new URL(origin).hostname; } catch { return origin; } }
 function shortTitle(title: string) { return title.length > 31 ? `${title.slice(0, 30).trimEnd()}…` : title; }
 function ControlSlider() { return <svg className="control-slider-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">{/* Iconoir control-slider — https://iconoir.com/icon/control-slider */}<path d="M6.75469 17.2828 5.32612 7.28284C5.154 6.07798 6.08892 5 7.30602 5H10.694C11.9111 5 12.846 6.07797 12.6739 7.28284L11.2453 17.2828C11.1046 18.2681 10.2607 19 9.26541 19H8.73459C7.73929 19 6.89545 18.2681 6.75469 17.2828Z" stroke="currentColor" strokeWidth="1.5" /><path d="M2 12H6M22 12H12" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" /></svg>; }

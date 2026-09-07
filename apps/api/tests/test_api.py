@@ -121,6 +121,8 @@ def test_multimodal_provider_sends_only_the_verified_receipt_as_an_image_part(mo
     assert result.action.targetId == "el_track"
     assert content[1] == {"type": "image_url", "image_url": {"url": data_url}}
     assert "screenshot" not in content[0]["text"]
+    assert "never infer, reconstruct, repeat, request, or act" in captured["json"]["messages"][0]["content"]
+    assert "blacked-out image regions" in captured["json"]["messages"][0]["content"]
 
 
 def test_openai_responses_provider_sends_the_receipt_as_a_low_detail_image(monkeypatch):
@@ -158,6 +160,8 @@ def test_openai_responses_provider_sends_the_receipt_as_a_low_detail_image(monke
     assert captured["json"]["store"] is False
     assert content[1] == {"type": "input_image", "image_url": data_url, "detail": "low"}
     assert "screenshot" not in content[0]["text"]
+    assert "never infer, reconstruct, repeat, request, or act" in captured["json"]["instructions"]
+    assert "blacked-out image regions" in captured["json"]["instructions"]
 
 
 def test_server_rejects_obvious_unredacted_email_without_echoing_it():

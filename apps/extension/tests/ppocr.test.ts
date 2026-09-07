@@ -1,9 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { decodePpOcrRegions, decodePpOcrText, preprocessPpOcrDetector, preprocessPpOcrRecognizer } from "../src/vision/ppocr";
+import { assertOcrRegionBudget, decodePpOcrRegions, decodePpOcrText, preprocessPpOcrDetector, preprocessPpOcrRecognizer } from "../src/vision/ppocr";
 
 function tensor(data: Float32Array, dims: readonly number[]) { return { data, dims } as never; }
 
 describe("PP-OCR local processing", () => {
+  it("rejects scans exceeding the recognition budget instead of truncating them", () => {
+    expect(() => assertOcrRegionBudget(150)).not.toThrow();
+    expect(() => assertOcrRegionBudget(151)).toThrow("budget exceeded");
+  });
   it("creates normalized NCHW detector and dynamic-width recognizer tensors", () => {
     const image = { data: new Uint8ClampedArray(4 * 40 * 20).fill(255), width: 40, height: 20 } as ImageData;
     expect(preprocessPpOcrDetector(image).dims).toEqual([1, 3, 32, 64]);

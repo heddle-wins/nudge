@@ -16,19 +16,10 @@ import { executeApprovedAction } from "../content/execute";
 import { renderRedactedViewport } from "../content/viewport";
 import { evaluateExecutionPolicy } from "../execution-policy";
 import { createSafeScreenshot } from "../safe-screenshot";
-import { browserSupportsWebGpu, createLocalVisionSession } from "../vision/runtime";
-import { detectFaces, YUNET_MODEL_PATH } from "../vision/yunet";
+import { browserSupportsWebGpu } from "../vision/runtime";
+import { detectFacesOffscreen } from "../vision/offscreen-client";
 
 chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch(console.error);
-
-let yuNetSession: ReturnType<typeof createLocalVisionSession> | undefined;
-
-function localYuNetSession() {
-  yuNetSession ??= createLocalVisionSession(chrome.runtime.getURL(YUNET_MODEL_PATH), {
-    supportsWebGpu: browserSupportsWebGpu()
-  });
-  return yuNetSession;
-}
 
 async function inspectTab(tabId: number) {
   try {
@@ -77,8 +68,7 @@ async function createRedactedViewport(tabId: number) {
   }
   const target = (await chrome.tabs.get(tabId));
   const rawCapture = await chrome.tabs.captureVisibleTab(target.windowId, { format: "png" });
-  const detectedFaces = await detectFaces(rawCapture, (await localYuNetSession()).session);
-  const faceRegions = detectedFaces.faces.map((face) => ({ ...face, kind: "face" as const, coordinateSpace: "image" as const }));
+  const faceRegions = (await detectFacesOffscreen(rawCapture)).map((face) => ({ ...face, kind: "face" as const, coordinateSpace: "image" as const }));
   const [rendered] = await chrome.scripting.executeScript({
     target: { tabId },
     func: renderRedactedViewport,

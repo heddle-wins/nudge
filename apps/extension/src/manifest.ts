@@ -5,7 +5,7 @@ const manifest: ManifestV3Export = {
   name: "Nudge",
   version: "0.3.0",
   description: "Privacy-first browser automation by Heddle.",
-  permissions: ["activeTab", "tabs", "sidePanel", "scripting", "storage"],
+  permissions: ["activeTab", "tabs", "sidePanel", "scripting", "storage", "offscreen"],
   host_permissions: ["<all_urls>"],
   content_security_policy: {
     extension_pages: "script-src 'self'; object-src 'self'; img-src 'self' data: http: https:"

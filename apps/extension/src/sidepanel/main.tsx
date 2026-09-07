@@ -3,6 +3,11 @@ import { createRoot } from "react-dom/client";
 import type { ExecutionResult, NextActionResponse, PiiKind, SafeScreenshot, SanitizedPageContext } from "@nudge/contracts";
 import type { RedactionDetail } from "@nudge/privacy-core";
 import "./styles.css";
+import { renderRedactedViewport } from "../content/viewport";
+
+if (import.meta.env.MODE === "fixture") {
+  Object.defineProperty(globalThis, "__nudgeFixtureRender", { value: renderRedactedViewport });
+}
 
 type PageIdentity = { tabId: number; title: string; origin: string; hostname: string; faviconUrl: string };
 type ReadyView = { status: "ready"; context: SanitizedPageContext; redactionDetails: RedactionDetail[]; visualRedactionCount: number; visualRedactionTypes: PiiKind[]; visualScan?: { scanMs: number; modelLoadMs: number; residueScanMs: number; backends: Array<"webgpu" | "wasm"> }; screenshot?: SafeScreenshot; viewportError?: string; page: PageIdentity };

@@ -15,3 +15,8 @@ to redact before a screenshot can leave the browser.
 The PP-OCR detector and recognizer are also bundled; their boxes and recognized
 text are used only inside Nudge's offscreen vision document to identify visual
 PII before the redaction renderer runs.
+
+Run `npm run measure:extension-bundle` after a production build to record exact
+bundled model, ONNX runtime, and total extension byte counts with SHA-256s. The
+ignored output is evidence of bundle bytes only; it is not an inference or
+resource benchmark.

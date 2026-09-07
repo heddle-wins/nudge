@@ -56,9 +56,12 @@ const timing = {
   fixtureCount: run.fixtures.length,
   scanMs: { p50: percentile(run.fixtures.map((fixture) => fixture.scan.scanMs), 0.5), p95: percentile(run.fixtures.map((fixture) => fixture.scan.scanMs), 0.95) },
   extensionRoundTripMs: { p50: percentile(run.fixtures.map((fixture) => fixture.extensionRoundTripMs), 0.5), p95: percentile(run.fixtures.map((fixture) => fixture.extensionRoundTripMs), 0.95) },
-  modelLoadMs: { p50: percentile(run.fixtures.map((fixture) => fixture.scan.modelLoadMs), 0.5), p95: percentile(run.fixtures.map((fixture) => fixture.scan.modelLoadMs), 0.95) },
+  // The offscreen document repeats its cached initialization duration on every
+  // scan. Those values are not independent cold-start samples.
+  initialModelReadyMs: run.fixtures[0]?.scan.modelLoadMs ?? null,
+  percentileMethod: "nearest-rank; scan samples include the initial cold scan",
   backends: [...new Set(run.fixtures.flatMap((fixture) => fixture.scan.backends ?? []))]
 };
-const report = { schemaVersion: 1, sourceRun: relative(root, input), protectedCoverageThreshold: 0.99, timing, totals: { ...totals, precision: totals.matchedMasks / Math.max(1, totals.matchedMasks + totals.falsePositiveMasks), recall: totals.protectedRegions / Math.max(1, totals.expectedRegions) }, fixtures };
+const report = { schemaVersion: 1, sourceRun: relative(root, input), environment: run.environment ?? null, measurementScope: "Detector boxes only; excludes renderer padding, DOM fusion, and post-redaction OCR. Coverage is labelled rectangle coverage, not proof of leaked text or final screenshot safety.", protectedCoverageThreshold: 0.99, timing, totals: { ...totals, precision: totals.matchedMasks / Math.max(1, totals.matchedMasks + totals.falsePositiveMasks), recall: totals.protectedRegions / Math.max(1, totals.expectedRegions) }, fixtures };
 await writeFile(output, `${JSON.stringify(report, null, 2)}\n`);
 process.stdout.write(`Wrote metrics for ${fixtures.length} fixtures to ${output}\n`);

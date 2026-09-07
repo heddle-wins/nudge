@@ -47,6 +47,18 @@ const fixtures = run.fixtures.map((fixtureRun) => {
   return score(fixtureRun, fixture);
 });
 const totals = fixtures.reduce((total, fixture) => ({ expectedRegions: total.expectedRegions + fixture.expectedRegions, protectedRegions: total.protectedRegions + fixture.protectedRegions, missedRegions: total.missedRegions + fixture.missedRegions, matchedMasks: total.matchedMasks + fixture.matchedMasks, falsePositiveMasks: total.falsePositiveMasks + fixture.falsePositiveMasks, residualSensitivePixels: total.residualSensitivePixels + fixture.residualSensitivePixels }), { expectedRegions: 0, protectedRegions: 0, missedRegions: 0, matchedMasks: 0, falsePositiveMasks: 0, residualSensitivePixels: 0 });
-const report = { schemaVersion: 1, sourceRun: relative(root, input), protectedCoverageThreshold: 0.99, totals: { ...totals, precision: totals.matchedMasks / Math.max(1, totals.matchedMasks + totals.falsePositiveMasks), recall: totals.protectedRegions / Math.max(1, totals.expectedRegions) }, fixtures };
+function percentile(values, percentileValue) {
+  const sorted = [...values].filter(Number.isFinite).sort((left, right) => left - right);
+  if (!sorted.length) return undefined;
+  return sorted[Math.min(sorted.length - 1, Math.ceil(percentileValue * sorted.length) - 1)];
+}
+const timing = {
+  fixtureCount: run.fixtures.length,
+  scanMs: { p50: percentile(run.fixtures.map((fixture) => fixture.scan.scanMs), 0.5), p95: percentile(run.fixtures.map((fixture) => fixture.scan.scanMs), 0.95) },
+  extensionRoundTripMs: { p50: percentile(run.fixtures.map((fixture) => fixture.extensionRoundTripMs), 0.5), p95: percentile(run.fixtures.map((fixture) => fixture.extensionRoundTripMs), 0.95) },
+  modelLoadMs: { p50: percentile(run.fixtures.map((fixture) => fixture.scan.modelLoadMs), 0.5), p95: percentile(run.fixtures.map((fixture) => fixture.scan.modelLoadMs), 0.95) },
+  backends: [...new Set(run.fixtures.flatMap((fixture) => fixture.scan.backends ?? []))]
+};
+const report = { schemaVersion: 1, sourceRun: relative(root, input), protectedCoverageThreshold: 0.99, timing, totals: { ...totals, precision: totals.matchedMasks / Math.max(1, totals.matchedMasks + totals.falsePositiveMasks), recall: totals.protectedRegions / Math.max(1, totals.expectedRegions) }, fixtures };
 await writeFile(output, `${JSON.stringify(report, null, 2)}\n`);
 process.stdout.write(`Wrote metrics for ${fixtures.length} fixtures to ${output}\n`);

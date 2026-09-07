@@ -54,9 +54,27 @@ class SanitizedContext(StrictModel):
     page: SanitizedPage
 
 
+class SafeScreenshot(StrictModel):
+    kind: Literal["nudge-redacted-screenshot"]
+    mimeType: Literal["image/png"]
+    dataUrl: Annotated[str, Field(pattern=r"^data:image/png;base64,[A-Za-z0-9+/=]+$", max_length=12_000_000)]
+    sha256: Annotated[str, Field(pattern=r"^[a-f0-9]{64}$")]
+    width: Annotated[int, Field(gt=0, le=10_000)]
+    height: Annotated[int, Field(gt=0, le=10_000)]
+
+
+class RedactionManifest(StrictModel):
+    count: Annotated[int, Field(ge=0)]
+    types: list[PiiKind]
+    visualMaskCount: Annotated[int, Field(ge=0)]
+    renderer: Literal["local-canvas-dom-v1"]
+
+
 class NextActionRequest(StrictModel):
     task: Annotated[str, Field(min_length=1, max_length=1_000)]
     context: SanitizedContext
+    redactionManifest: RedactionManifest
+    screenshot: SafeScreenshot | None = None
 
 
 class ActionType(str, Enum):

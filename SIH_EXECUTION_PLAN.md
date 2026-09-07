@@ -202,7 +202,7 @@ Both must return the same strictly validated action schema. No extension code sh
 
 ### Phase 4 — Finish the trusted interaction loop
 
-- [ ] Show clear redaction explanations and outgoing-image receipt.
+- [x] Show clear redaction explanations and outgoing-image receipt. (PR #45 mounts the exact `SafeScreenshot` preview in the active privacy panel, with visual-mask summary, local scan metadata, and the same image's shortened SHA-256 receipt.)
 - [ ] Support user-marked visual privacy regions, not only fields.
 - [ ] Reinspect before every confirmed action.
 - [ ] Keep all sensitive typing local; provider-supplied text is never typed automatically.
@@ -283,9 +283,10 @@ The internal 41-repository comparison informed this plan. The projects to beat a
 - Merged [PR #39](https://github.com/heddle-wins/nudge/pull/39): added the frozen, synthetic visual-privacy fixture corpus and manifest: DOM credentials, screenshot-only Indian IDs, canvas-like contact data, profile/avatar plus test payment card, Devanagari/adversarial formatting, and an unknown visual surface that must be withheld.
 - Merged [PR #41](https://github.com/heddle-wins/nudge/pull/41): added `npm run fixtures:rasterize`, which renders all six fixture sources through local headless Chrome and records local PNG SHA-256s, dimensions, expected policy, and rasterization timing. Its artifacts are ignored and it makes no inference/accuracy claim.
 - Merged [PR #43](https://github.com/heddle-wins/nudge/pull/43): makes the extension-local offscreen scan return aggregate scan duration and the actual WebGPU/WASM backend(s), so the future controlled fixture runner can measure model execution without exposing raw pixels or OCR text.
+- Merged [PR #45](https://github.com/heddle-wins/nudge/pull/45): makes the current side-panel privacy summary show the exact redacted screenshot that is eligible for egress, visual masks/types, local scan backend/timings, and an outgoing-image SHA-256 receipt. It never renders raw capture pixels or OCR text.
 - Verification for this checkpoint: API tests (10), TypeScript checks, privacy-core tests (10), extension tests (29), and the extension production build all passed locally.
 
-**Progress:** Phase 1 is materially started (2 of 5 checklist items checked); Phase 2 has 6 of 7 items complete (local runtime, offscreen YuNet face redaction, offscreen PP-OCR, local OCR PII rules, fusion, and exact-image residue verification). Screen-state classification remains. Phase 3 is underway (3 of 6 checked). Phase 5 has 2 of 6 items complete: fixtures, labels, local Chrome rasterization, deterministic metric primitives, and local scan telemetry exist, but no extension-context inference/precision/recall/resource/latency report exists. Before changing the current image/canvas/iframe block rule, the next priority is an extension-context fixture run that captures the local model masks and timings.
+**Progress:** Phase 1 is materially started (2 of 5 checklist items checked); Phase 2 has 6 of 7 items complete (local runtime, offscreen YuNet face redaction, offscreen PP-OCR, local OCR PII rules, fusion, and exact-image residue verification). Screen-state classification remains. Phase 3 is underway (3 of 6 checked). Phase 4 has 1 of 5 items complete (visible redaction/outgoing-image receipt). Phase 5 has 2 of 6 items complete: fixtures, labels, local Chrome rasterization, deterministic metric primitives, and local scan telemetry exist, but no extension-context inference/precision/recall/resource/latency report exists. Before changing the current image/canvas/iframe block rule, the next priority is an extension-context fixture run that captures the local model masks and timings.
 
 Continue Phase 1 and Phase 2 together:
 

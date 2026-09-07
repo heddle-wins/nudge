@@ -205,3 +205,55 @@ def test_server_rejects_provider_action_for_unknown_target():
             app.state.reasoning_service = previous
     assert response.status_code == 422
     assert "el_unknown" not in response.text
+
+
+def test_server_rejects_provider_action_for_hidden_or_disabled_target():
+    from app.providers import ReasoningProvider
+    from app.schemas import ModelActionResponse
+    from app.service import ReasoningService
+
+    class HiddenTargetProvider(ReasoningProvider):
+        async def next_action(self, _request):
+            return ModelActionResponse.model_validate({
+                "action": {"type": "click", "targetId": "el_track"},
+                "rationale": "Use the hidden control.",
+                "confidence": 1,
+                "requiresConfirmation": True,
+            })
+
+    payload = fixture_payload()
+    payload["context"]["page"]["elements"][0]["state"]["visible"] = False
+    with TestClient(app) as client:
+        previous = app.state.reasoning_service
+        app.state.reasoning_service = ReasoningService(HiddenTargetProvider())
+        try:
+            response = client.post("/v1/next-action", json=payload)
+        finally:
+            app.state.reasoning_service = previous
+    assert response.status_code == 422
+    assert "hidden control" not in response.text
+
+
+def test_server_rejects_provider_action_with_incompatible_target_role():
+    from app.providers import ReasoningProvider
+    from app.schemas import ModelActionResponse
+    from app.service import ReasoningService
+
+    class IncompatibleTargetProvider(ReasoningProvider):
+        async def next_action(self, _request):
+            return ModelActionResponse.model_validate({
+                "action": {"type": "click", "targetId": "el_number"},
+                "rationale": "Click the textbox.",
+                "confidence": 1,
+                "requiresConfirmation": True,
+            })
+
+    with TestClient(app) as client:
+        previous = app.state.reasoning_service
+        app.state.reasoning_service = ReasoningService(IncompatibleTargetProvider())
+        try:
+            response = client.post("/v1/next-action", json=fixture_payload())
+        finally:
+            app.state.reasoning_service = previous
+    assert response.status_code == 422
+    assert "textbox" not in response.text

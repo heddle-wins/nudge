@@ -117,9 +117,48 @@ class OpenAIResponsesProvider(ReasoningProvider):
             raise ProviderError("OpenAI returned an invalid action response.") from error
 
 
+class QwenOpenAICompatibleProvider(ReasoningProvider):
+    """Server-configured Qwen2.5-VL-compatible chat-completions adapter."""
+
+    def __init__(self, settings: Settings):
+        self._settings = settings
+
+    async def next_action(self, request: NextActionRequest) -> ModelActionResponse:
+        safe_context = request.model_dump(mode="json", exclude={"screenshot"})
+        user_content: list[dict[str, object]] = [
+            {"type": "text", "text": json.dumps(safe_context, separators=(",", ":"))}
+        ]
+        if request.screenshot:
+            user_content.append({"type": "image_url", "image_url": {"url": request.screenshot.dataUrl}})
+        payload = {
+            "model": self._settings.model,
+            "messages": [
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": user_content},
+            ],
+            "temperature": 0,
+            "response_format": {
+                "type": "json_schema",
+                "json_schema": {"name": "nudge_next_action", "strict": True, "schema": action_json_schema()},
+            },
+        }
+        headers = {"Authorization": f"Bearer {self._settings.qwen_api_key}", "Content-Type": "application/json"}
+        async with httpx.AsyncClient(base_url=self._settings.qwen_base_url, timeout=20.0) as client:
+            response = await client.post("/chat/completions", json=payload, headers=headers)
+            if response.is_error:
+                raise ProviderError(f"Qwen-compatible endpoint rejected the reasoning request ({response.status_code}).")
+        try:
+            content = response.json()["choices"][0]["message"]["content"]
+            return ModelActionResponse.model_validate_json(content)
+        except (KeyError, TypeError, ValidationError, json.JSONDecodeError) as error:
+            raise ProviderError("Qwen-compatible endpoint returned an invalid action response.") from error
+
+
 def create_provider(settings: Settings) -> ReasoningProvider:
     if settings.provider == "fastrouter":
         return FastRouterProvider(settings)
     if settings.provider == "openai":
         return OpenAIResponsesProvider(settings)
+    if settings.provider == "qwen":
+        return QwenOpenAICompatibleProvider(settings)
     return MockReasoningProvider()

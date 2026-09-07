@@ -123,6 +123,43 @@ def test_multimodal_provider_sends_only_the_verified_receipt_as_an_image_part(mo
     assert "screenshot" not in content[0]["text"]
 
 
+def test_openai_responses_provider_sends_the_receipt_as_a_low_detail_image(monkeypatch):
+    from app.config import Settings
+    from app.providers import OpenAIResponsesProvider
+    from app.schemas import NextActionRequest
+
+    payload = fixture_payload()
+    image = b"redacted-png-fixture"
+    data_url = "data:image/png;base64," + base64.b64encode(image).decode()
+    payload["screenshot"] = {
+        "kind": "nudge-redacted-screenshot", "mimeType": "image/png", "dataUrl": data_url,
+        "sha256": hashlib.sha256(image).hexdigest(), "width": 100, "height": 50,
+    }
+    captured: dict = {}
+
+    class FakeClient:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_args):
+            return False
+
+        async def post(self, path, json, headers):
+            captured.update(path=path, json=json, headers=headers)
+            return httpx.Response(200, json={"output": [{"type": "message", "content": [{"type": "output_text", "text": '{"action":{"type":"click","targetId":"el_track"},"rationale":"Use the visible control.","confidence":0.8,"requiresConfirmation":true}'}]}]})
+
+    monkeypatch.setattr("app.providers.httpx.AsyncClient", lambda **_kwargs: FakeClient())
+    provider = OpenAIResponsesProvider(Settings(provider="openai", openai_api_key="test-key"))
+    result = asyncio.run(provider.next_action(NextActionRequest.model_validate(payload)))
+
+    content = captured["json"]["input"][0]["content"]
+    assert result.action.targetId == "el_track"
+    assert captured["path"] == "/responses"
+    assert captured["json"]["store"] is False
+    assert content[1] == {"type": "input_image", "image_url": data_url, "detail": "low"}
+    assert "screenshot" not in content[0]["text"]
+
+
 def test_server_rejects_obvious_unredacted_email_without_echoing_it():
     payload = fixture_payload()
     payload["context"]["page"]["elements"][1]["value"] = "person@example.com"

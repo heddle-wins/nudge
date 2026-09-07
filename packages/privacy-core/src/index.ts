@@ -24,6 +24,8 @@ export type RawPageContext = {
   hasUninspectableVisualContent?: boolean;
   /** Text and fields considered only when preparing a local viewport preview. */
   visualElements?: RawPageElement[];
+  /** User-drawn viewport rectangles. Geometry is local-only and never outbound. */
+  userMarkedVisualRegions?: Array<{ x: number; y: number; width: number; height: number }>;
 };
 
 export type VisualRedactionRegion = {
@@ -188,7 +190,8 @@ function toVisualRedactions(elements: RawPageElement[]): VisualRedactionRegion[]
 export function createPrivacyInspection(raw: RawPageContext): PrivacyInspection {
   const sanitizedElements = raw.elements.map(sanitizeElement);
   const title = sanitizeText(raw.title);
-  const types = unique([...title.redactions, ...sanitizedElements.flatMap(({ redactions }) => redactions)]);
+  const manualRegions = raw.userMarkedVisualRegions ?? [];
+  const types = unique([...title.redactions, ...sanitizedElements.flatMap(({ redactions }) => redactions), ...(manualRegions.length ? ["user_marked" as const] : [])]);
   const url = new URL(raw.url);
   const redactionDetails: RedactionDetail[] = title.redactions.map((kind) => ({
     kind,
@@ -210,6 +213,9 @@ export function createPrivacyInspection(raw: RawPageContext): PrivacyInspection 
       redactionDetails.push({ kind, location, source });
     }
   }
+  for (let index = 0; index < manualRegions.length; index += 1) {
+    redactionDetails.push({ kind: "user_marked", location: `User-marked screen area ${index + 1}`, source: "visible_text" });
+  }
 
   return {
     context: {
@@ -220,12 +226,12 @@ export function createPrivacyInspection(raw: RawPageContext): PrivacyInspection 
         title: title.value,
         elements: sanitizedElements.map(({ element }) => element),
         redactions: {
-          count: title.redactions.length + sanitizedElements.reduce((total, item) => total + item.redactions.length, 0),
+          count: title.redactions.length + sanitizedElements.reduce((total, item) => total + item.redactions.length, 0) + manualRegions.length,
           types
         }
       }
     },
-    visualRedactions: toVisualRedactions([...(raw.visualElements ?? []), ...raw.elements]),
+    visualRedactions: [...toVisualRedactions([...(raw.visualElements ?? []), ...raw.elements]), ...manualRegions.map((region) => ({ ...region, kind: "user_marked" as const }))],
     redactionDetails
   };
 }

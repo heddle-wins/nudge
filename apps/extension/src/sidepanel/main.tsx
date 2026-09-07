@@ -84,6 +84,12 @@ function App() {
     if (response?.ok) await inspectTab();
   }
 
+  async function markVisualPrivate() {
+    if (state.status !== "ready") return;
+    const response = await chrome.runtime.sendMessage({ type: "NUDGE_BEGIN_VISUAL_PRIVACY_MARK", tabId: state.page.tabId });
+    if (response?.ok) await inspectTab();
+  }
+
   async function sendTask(event: React.FormEvent) {
     event.preventDefault();
     if (state.status !== "ready" || !draft.trim() || !serverUrl.trim()) return;
@@ -114,7 +120,7 @@ function App() {
   const isReady = state.status === "ready";
   return <main className="app-shell">
     {openPrivacyPanel && <button className="privacy-backdrop" type="button" aria-label="Close privacy panel" onClick={() => setOpenPrivacyPanel(null)} />}
-    {state.status === "ready" && <PrivacySummary view={state} openPanel={openPrivacyPanel} onOpenPanelChange={setOpenPrivacyPanel} onMarkPrivate={markPrivate} />}
+    {state.status === "ready" && <PrivacySummary view={state} openPanel={openPrivacyPanel} onOpenPanelChange={setOpenPrivacyPanel} onMarkPrivate={markPrivate} onMarkVisualPrivate={markVisualPrivate} />}
     <section className="conversation-viewport">
       <section className="conversation" aria-live="polite" aria-label="Nudge conversation">
         {state.status === "loading" && <AssistantBubble kind="loading">Inspecting this page locally…</AssistantBubble>}
@@ -140,7 +146,7 @@ function App() {
   </main>;
 }
 
-function PrivacySummary({ view, openPanel, onOpenPanelChange, onMarkPrivate }: { view: ReadyView; openPanel: "redactions" | "controls" | null; onOpenPanelChange: (panel: "redactions" | "controls" | null) => void; onMarkPrivate: (id: string) => Promise<void> }) {
+function PrivacySummary({ view, openPanel, onOpenPanelChange, onMarkPrivate, onMarkVisualPrivate }: { view: ReadyView; openPanel: "redactions" | "controls" | null; onOpenPanelChange: (panel: "redactions" | "controls" | null) => void; onMarkPrivate: (id: string) => Promise<void>; onMarkVisualPrivate: () => Promise<void> }) {
   const privateFields = view.context.page.elements.filter((element) => element.role === "textbox" || element.role === "combobox").slice(0, 20);
   const redactions = view.context.page.redactions.count + view.visualRedactionCount;
   return <section className="privacy-summary" aria-label="Privacy controls">
@@ -158,6 +164,7 @@ function PrivacySummary({ view, openPanel, onOpenPanelChange, onMarkPrivate }: {
       <summary onClick={(event) => { event.preventDefault(); onOpenPanelChange(openPanel === "controls" ? null : "controls"); }}><ControlSlider />Privacy controls</summary>
       <div className="privacy-controls-panel">
         <p>Protected values stay in this browser.</p>
+        <button className="mark-visual-area" type="button" onClick={() => void onMarkVisualPrivate()}>Mark an area on this page private</button>
         {privateFields.length > 0 ? <div className="element-list">{privateFields.map((element) => <button type="button" key={element.id} onClick={() => void onMarkPrivate(element.id)}>Mark “{element.name}” private</button>)}</div> : <p>No editable fields are available to mark private.</p>}
       </div>
     </details>

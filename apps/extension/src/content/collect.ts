@@ -80,6 +80,25 @@ export function collectRawPageContext(): RawPageContext {
     return { x, y, width: Math.max(0, right - x), height: Math.max(0, bottom - y) };
   }
 
+  function userMarkedVisualRegions() {
+    try {
+      const stored = JSON.parse(document.documentElement.getAttribute("data-nudge-visual-regions") ?? "[]") as unknown;
+      if (!Array.isArray(stored)) return [];
+      return stored.flatMap((value) => {
+        if (!value || typeof value !== "object") return [];
+        const region = value as { x?: unknown; y?: unknown; width?: unknown; height?: unknown };
+        if (![region.x, region.y, region.width, region.height].every(Number.isFinite)) return [];
+        const x = Math.max(0, Math.min(window.innerWidth, region.x as number));
+        const y = Math.max(0, Math.min(window.innerHeight, region.y as number));
+        const right = Math.max(x, Math.min(window.innerWidth, x + Math.max(0, region.width as number)));
+        const bottom = Math.max(y, Math.min(window.innerHeight, y + Math.max(0, region.height as number)));
+        return right - x >= 4 && bottom - y >= 4 ? [{ x, y, width: right - x, height: bottom - y }] : [];
+      }).slice(0, 20);
+    } catch {
+      return [];
+    }
+  }
+
   const selectors = "button, a[href], input, textarea, select, [role='button'], [role='link'], [role='combobox'], h1, h2, h3";
   const elements = [...document.querySelectorAll<HTMLElement>(selectors)]
     .filter(isVisible)
@@ -113,6 +132,7 @@ export function collectRawPageContext(): RawPageContext {
     visualId += 1;
   }
 
+  const markedRegions = userMarkedVisualRegions();
   return {
     url: window.location.href,
     title: document.title,
@@ -121,7 +141,8 @@ export function collectRawPageContext(): RawPageContext {
     viewport: { width: window.innerWidth, height: window.innerHeight },
     visualScanComplete,
     hasUninspectableVisualContent: [...document.querySelectorAll<HTMLElement>("img, canvas, embed, object, iframe")]
-      .some(isVisible)
+      .some(isVisible),
+    ...(markedRegions.length ? { userMarkedVisualRegions: markedRegions } : {})
   };
 }
 
@@ -138,4 +159,62 @@ export function markElementPrivate(elementId: string): boolean {
   if (!element) return false;
   element.setAttribute("data-nudge-private", "true");
   return true;
+}
+
+/**
+ * Opens a local, one-shot drag selection. It is self-contained so the background
+ * can inject it into a tab that pre-dates extension installation.
+ */
+export function beginVisualPrivacyMark(): Promise<boolean> {
+  const existing = document.getElementById("nudge-visual-privacy-picker");
+  if (existing) return Promise.resolve(false);
+  return new Promise((resolve) => {
+    const overlay = document.createElement("div");
+    const selection = document.createElement("div");
+    const hint = document.createElement("div");
+    overlay.id = "nudge-visual-privacy-picker";
+    hint.textContent = "Drag over an area to keep private · Esc to cancel";
+    Object.assign(overlay.style, { position: "fixed", inset: "0", zIndex: "2147483647", cursor: "crosshair", background: "rgba(16, 21, 29, .16)", userSelect: "none" });
+    Object.assign(selection.style, { position: "fixed", display: "none", border: "2px solid #ffbe0b", background: "rgba(255, 190, 11, .18)", pointerEvents: "none" });
+    Object.assign(hint.style, { position: "fixed", top: "16px", left: "50%", transform: "translateX(-50%)", padding: "9px 13px", borderRadius: "8px", background: "#10151d", color: "#fff", font: "600 14px system-ui", boxShadow: "0 4px 20px rgba(0,0,0,.32)", pointerEvents: "none" });
+    overlay.append(selection, hint);
+    document.documentElement.append(overlay);
+    let start: { x: number; y: number } | undefined;
+    let settled = false;
+    const finish = (saved: boolean) => {
+      if (settled) return;
+      settled = true;
+      overlay.remove();
+      window.removeEventListener("keydown", onKeyDown, true);
+      resolve(saved);
+    };
+    const onKeyDown = (event: KeyboardEvent) => { if (event.key === "Escape") finish(false); };
+    const draw = (end: { x: number; y: number }) => {
+      if (!start) return { x: 0, y: 0, width: 0, height: 0 };
+      const x = Math.max(0, Math.min(start.x, end.x));
+      const y = Math.max(0, Math.min(start.y, end.y));
+      const width = Math.abs(end.x - start.x);
+      const height = Math.abs(end.y - start.y);
+      Object.assign(selection.style, { display: "block", left: `${x}px`, top: `${y}px`, width: `${width}px`, height: `${height}px` });
+      return { x, y, width, height };
+    };
+    overlay.addEventListener("pointerdown", (event) => {
+      start = { x: event.clientX, y: event.clientY };
+      overlay.setPointerCapture(event.pointerId);
+      draw(start);
+    });
+    overlay.addEventListener("pointermove", (event) => { if (start) draw({ x: event.clientX, y: event.clientY }); });
+    overlay.addEventListener("pointerup", (event) => {
+      const region = draw({ x: event.clientX, y: event.clientY });
+      if (region.width < 4 || region.height < 4) return finish(false);
+      let existingRegions: Array<{ x: number; y: number; width: number; height: number }> = [];
+      try {
+        const parsed = JSON.parse(document.documentElement.getAttribute("data-nudge-visual-regions") ?? "[]");
+        if (Array.isArray(parsed)) existingRegions = parsed.filter((value): value is typeof region => value && typeof value === "object").slice(0, 19);
+      } catch { /* replace malformed local state */ }
+      document.documentElement.setAttribute("data-nudge-visual-regions", JSON.stringify([...existingRegions, region]));
+      finish(true);
+    });
+    window.addEventListener("keydown", onKeyDown, true);
+  });
 }

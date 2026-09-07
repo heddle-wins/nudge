@@ -1,5 +1,5 @@
 import { createOutboundSafeContext, createPrivacyInspection } from "@nudge/privacy-core";
-import { collectRawPageContext, markElementPrivate } from "./collect";
+import { beginVisualPrivacyMark, collectRawPageContext, markElementPrivate } from "./collect";
 import { executeApprovedAction } from "./execute";
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
@@ -12,6 +12,12 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   } catch (error) {
     sendResponse({ ok: false, error: error instanceof Error ? error.message : "Unable to inspect this page." });
   }
+});
+
+chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  if (message?.type !== "NUDGE_BEGIN_VISUAL_PRIVACY_MARK") return;
+  beginVisualPrivacyMark().then((ok) => sendResponse({ ok })).catch(() => sendResponse({ ok: false }));
+  return true;
 });
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {

@@ -50,7 +50,7 @@ The judging criteria are not a generic security checklist. They give marks for v
 | Screenshot to VLM | Working baseline | The exact locally redacted PNG now has a typed receipt, SHA-256 integrity check, visible preview, and one server request path. It remains DOM-mask-only until OCR/face perception lands. |
 | Multimodal reasoning provider | Working baseline | The OpenAI-compatible provider path sends the verified protected PNG as an image part. An explicit OpenAI adapter and open-weight Qwen adapter remain to do. |
 | Measured SIH evaluation | In progress | Frozen synthetic fixtures now rasterize reproducibly in local Chrome and have deterministic redaction metrics; extension-context inference, accuracy reporting, resource benchmarks, and p50/p95 remain. |
-| Firefox build and test | **Missing** | The current implementation is Chrome-oriented. |
+| Firefox build and test | Documented boundary | Nudge is Chrome/Chromium-only today; no Firefox compatibility is claimed. See [`docs/browser-support.md`](./docs/browser-support.md). |
 
 ## 4. The architecture we will build
 
@@ -207,7 +207,7 @@ Both must return the same strictly validated action schema. No extension code sh
 - [x] Reinspect before every confirmed action. (PR #47 re-collects the local page context at confirmation time, blocks origin/role/name/visibility/enabled-state drift, re-evaluates policy using that fresh context, then keeps the content executor's final live-target resolution.)
 - [x] Keep all sensitive typing local; provider-supplied text is never typed automatically. (PR #49 regression-tests the strict proposal contract, server payload shape, and separate local execution message; no provider action can contain a typing value.)
 - [x] Maintain block rules for MFA, CAPTCHA, payments, submits, destructive operations, and external navigation. (PR #54 verifies the existing local executor blocks each class, including OTP fields and same-origin new-tab links, rather than relying on confirmation alone.)
-- [ ] Add Firefox-compatible packaging or document the tested browser boundary if Firefox is not achievable in time.
+- [x] Add Firefox-compatible packaging or document the tested browser boundary if Firefox is not achievable in time. (PR #56 documents the Chrome/Chromium-only target, Chrome 151 local fixture evidence, and the privacy/evaluation parity gates required before any Firefox claim.)
 
 **Done when:** a user can understand what was protected, what was sent, and why an action was or was not allowed.
 
@@ -289,9 +289,10 @@ The internal 41-repository comparison informed this plan. The projects to beat a
 - Merged [PR #51](https://github.com/heddle-wins/nudge/pull/51): added the current-page local drag selector for user-marked visual regions, fused into the screenshot renderer as `user_marked` masks. It has an on-page cancellation affordance and a 20-region cap.
 - Merged [PR #52](https://github.com/heddle-wins/nudge/pull/52): corrected visual-mark accounting so a drawn mask remains in the visual redaction manifest without double-counting it in DOM-context redactions.
 - Merged [PR #54](https://github.com/heddle-wins/nudge/pull/54): completed regression coverage for local action blocks: payment/destructive actions, submit, MFA/CAPTCHA/OTP, external navigation, and same-origin new-tab navigation all pause.
+- Merged [PR #56](https://github.com/heddle-wins/nudge/pull/56): declared the Chrome/Chromium support boundary rather than claiming Firefox compatibility; it lists the actual verified evidence and future Firefox porting gates.
 - Verification for this checkpoint: API tests (10), TypeScript checks, privacy-core tests (11), extension tests (34), and the extension production build all passed locally.
 
-**Progress:** Phase 1 is materially started (2 of 5 checklist items checked); Phase 2 has 6 of 7 items complete (local runtime, offscreen YuNet face redaction, offscreen PP-OCR, local OCR PII rules, fusion, and exact-image residue verification). Screen-state classification remains. Phase 3 is underway (3 of 6 checked). Phase 4 has 5 of 6 items complete (all trusted-loop controls except the Firefox boundary). Phase 5 has 2 of 6 items complete: fixtures, labels, local Chrome rasterization, deterministic metric primitives, and local scan telemetry exist, but no extension-context inference/precision/recall/resource/latency report exists. Before changing the current image/canvas/iframe block rule, the next priority is an extension-context fixture run that captures the local model masks and timings.
+**Progress:** Phase 1 is materially started (2 of 5 checklist items checked); Phase 2 has 6 of 7 items complete (local runtime, offscreen YuNet face redaction, offscreen PP-OCR, local OCR PII rules, fusion, and exact-image residue verification). Screen-state classification remains. Phase 3 is underway (3 of 6 checked). Phase 4 is complete (6 of 6), with a documented Chrome/Chromium-only browser boundary—not Firefox support. Phase 5 has 2 of 6 items complete: fixtures, labels, local Chrome rasterization, deterministic metric primitives, and local scan telemetry exist, but no extension-context inference/precision/recall/resource/latency report exists. Before changing the current image/canvas/iframe block rule, the next priority is an extension-context fixture run that captures the local model masks and timings.
 
 Continue Phase 1 and Phase 2 together:
 

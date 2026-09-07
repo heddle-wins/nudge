@@ -7,6 +7,10 @@ export type RedactionMetrics = {
   expectedRegions: number;
   protectedRegions: number;
   missedRegions: number;
+  matchedMasks: number;
+  falsePositiveMasks: number;
+  precision: number;
+  recall: number;
   residualSensitivePixels: number;
   protectedSensitivePixels: number;
   predictedMaskPixels: number;
@@ -30,6 +34,12 @@ function contains(box: NormalizedBox, x: number, y: number) {
   return x >= box.x && x < box.right && y >= box.y && y < box.bottom;
 }
 
+function intersectionArea(left: NormalizedBox, right: NormalizedBox) {
+  const width = Math.max(0, Math.min(left.right, right.right) - Math.max(left.x, right.x));
+  const height = Math.max(0, Math.min(left.bottom, right.bottom) - Math.max(left.y, right.y));
+  return width * height;
+}
+
 function coveredArea(region: NormalizedBox, masks: NormalizedBox[]) {
   const xs = [...new Set([region.x, region.right, ...masks.flatMap((mask) => [Math.max(region.x, mask.x), Math.min(region.right, mask.right)])])]
     .filter((value) => value >= region.x && value <= region.right).sort((a, b) => a - b);
@@ -47,6 +57,8 @@ function coveredArea(region: NormalizedBox, masks: NormalizedBox[]) {
 /**
  * Computes deterministic fixture metrics using the actual redaction rectangles.
  * A protected region needs 99% pixel coverage: padding is allowed, pixel leaks are not.
+ * Precision is mask-level (a predicted mask must overlap any labelled region); recall
+ * uses the stricter 99%-covered-region definition. Both are separate from pixel coverage.
  */
 export function evaluateRedaction(
   screenshot: { width: number; height: number },
@@ -101,10 +113,16 @@ export function evaluateRedaction(
     if (!expectedBoxes.some(({ box }) => contains(box, x, y))) overRedactedPixels += area;
   }
   const expectedPixels = protectedSensitivePixels + residualSensitivePixels;
+  const matchedMasks = maskBoxes.filter((mask) => expectedBoxes.some(({ box }) => intersectionArea(mask, box) > 0)).length;
+  const falsePositiveMasks = maskBoxes.length - matchedMasks;
   return {
     expectedRegions: expectedBoxes.length,
     protectedRegions,
     missedRegions: expectedBoxes.length - protectedRegions,
+    matchedMasks,
+    falsePositiveMasks,
+    precision: maskBoxes.length === 0 ? (expectedBoxes.length === 0 ? 1 : 0) : matchedMasks / maskBoxes.length,
+    recall: expectedBoxes.length === 0 ? 1 : protectedRegions / expectedBoxes.length,
     residualSensitivePixels,
     protectedSensitivePixels,
     predictedMaskPixels,

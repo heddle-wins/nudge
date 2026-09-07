@@ -11,3 +11,6 @@ coverage/
 !.env.example
 *.log
 *.tsbuildinfo
+
+#competitor-analysis material
+competitor-research/

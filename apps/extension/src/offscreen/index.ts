@@ -39,6 +39,10 @@ function timedSession(modelPath: string): Promise<TimedSession> {
     .then((result) => ({ ...result, loadMs: Math.round((performance.now() - started) * 100) / 100 }));
 }
 
+chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  if (message?.type === "NUDGE_OFFSCREEN_READY") sendResponse({ ready: true });
+});
+
 chrome.runtime.onMessage.addListener((message: VisionRequest, _sender, sendResponse) => {
   if (message?.type !== "NUDGE_OFFSCREEN_DETECT_VISUAL_PII" || typeof message.requestId !== "string" || typeof message.screenshot !== "string") return;
   const started = performance.now();

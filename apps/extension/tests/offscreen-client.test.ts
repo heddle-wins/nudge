@@ -1,12 +1,27 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { detectVisualPrivacyOffscreen } from "../src/vision/offscreen-client";
 
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => { vi.unstubAllGlobals(); vi.useRealTimers(); });
 
 describe("offscreen vision client", () => {
+  it("withholds screenshot pixels when the listener never becomes ready", async () => {
+    vi.useFakeTimers();
+    const sendMessage = vi.fn().mockImplementation(() => new Promise(() => {}));
+    vi.stubGlobal("chrome", { runtime: {
+      getURL: (path: string) => path,
+      ContextType: { OFFSCREEN_DOCUMENT: "OFFSCREEN_DOCUMENT" },
+      getContexts: vi.fn().mockResolvedValue([{}]), sendMessage
+    } });
+    const assertion = expect(detectVisualPrivacyOffscreen("raw-pixels")).rejects.toThrow("startup timed out");
+    await vi.runAllTimersAsync();
+    await assertion;
+    expect(sendMessage).toHaveBeenCalledTimes(20);
+    expect(sendMessage.mock.calls.every(([message]) => message.type === "NUDGE_OFFSCREEN_READY" && !("screenshot" in message))).toBe(true);
+  });
   it("creates Nudge's own offscreen host and returns only local face boxes", async () => {
     const createDocument = vi.fn().mockResolvedValue(undefined);
-    const sendMessage = vi.fn().mockResolvedValue({
+    const sendMessage = vi.fn().mockRejectedValueOnce(new Error("Receiving end does not exist"))
+      .mockResolvedValueOnce({ ready: true }).mockResolvedValue({
       ok: true,
       requestId: "fixed-request",
       regions: [{ x: 1, y: 2, width: 3, height: 4, score: 0.9, kind: "face" }],
@@ -41,7 +56,7 @@ describe("offscreen vision client", () => {
         getURL: (path: string) => `chrome-extension://nudge/${path}`,
         ContextType: { OFFSCREEN_DOCUMENT: "OFFSCREEN_DOCUMENT" },
         getContexts: vi.fn().mockResolvedValue([{}]),
-        sendMessage: vi.fn().mockResolvedValue({ ok: true, requestId: "fixed-request", regions: [], scanMs: 4, backends: ["wasm"] })
+        sendMessage: vi.fn().mockResolvedValueOnce({ ready: true }).mockResolvedValue({ ok: true, requestId: "fixed-request", regions: [], scanMs: 4, backends: ["wasm"] })
       },
       offscreen: { Reason: { WORKERS: "WORKERS" }, createDocument: vi.fn() }
     });

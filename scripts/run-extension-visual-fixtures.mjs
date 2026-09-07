@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { access, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { arch, availableParallelism, cpus, platform, release, tmpdir, totalmem } from "node:os";
 import { dirname, relative, resolve } from "node:path";
 import { spawn } from "node:child_process";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -36,6 +36,21 @@ const browser = spawn(process.env.CHROME_BIN ?? "google-chrome", ["--headless=ne
 try {
   const version = await waitFor(() => getJson(`http://127.0.0.1:${port}/json/version`), "Chrome DevTools");
   const devtools = await connect(version.webSocketDebuggerUrl);
+  const system = await devtools.send("SystemInfo.getInfo").catch(() => undefined);
+  const environment = {
+    browser: version.Browser,
+    protocolVersion: version["Protocol-Version"],
+    node: process.version,
+    host: {
+      platform: platform(),
+      release: release(),
+      arch: arch(),
+      logicalCpuCount: availableParallelism(),
+      cpuModel: cpus()[0]?.model ?? "unknown",
+      totalMemoryBytes: totalmem()
+    },
+    gpu: system?.gpu?.devices?.map((device) => ({ vendorId: device.vendorId, deviceId: device.deviceId, vendorString: device.vendorString, deviceString: device.deviceString })) ?? []
+  };
   const { id: extensionId } = await devtools.send("Extensions.loadUnpacked", { path: resolve(extension, "dist") });
   const extensionOrigin = `chrome-extension://${extensionId}`;
   const activationTarget = await devtools.send("Target.createTarget", { url: `${extensionOrigin}/src/sidepanel/index.html` });
@@ -49,8 +64,16 @@ try {
     const pageInfo = await waitFor(async () => (await getJson(`http://127.0.0.1:${port}/json/list`)).find((page) => page.id === target.targetId), `fixture page ${fixture.id}`);
     const page = await connect(pageInfo.webSocketDebuggerUrl);
     await page.send("Page.enable");
+    await page.send("Emulation.setDeviceMetricsOverride", { ...fixture.dimensions, deviceScaleFactor: 1, mobile: false });
+    await waitFor(async () => {
+      const state = await page.send("Runtime.evaluate", { expression: "document.readyState", returnByValue: true });
+      return state.result.value === "complete";
+    }, `fixture load ${fixture.id}`);
     await page.send("Runtime.evaluate", { expression: "document.fonts ? document.fonts.ready : Promise.resolve()", awaitPromise: true });
     const capture = await page.send("Page.captureScreenshot", { format: "png", captureBeyondViewport: false });
+    const png = Buffer.from(capture.data, "base64");
+    const dimensions = { width: png.readUInt32BE(16), height: png.readUInt32BE(20) };
+    if (dimensions.width !== fixture.dimensions.width || dimensions.height !== fixture.dimensions.height) throw new Error(`Incorrect capture dimensions for ${fixture.id}: ${JSON.stringify(dimensions)}`);
     const screenshot = `data:image/png;base64,${capture.data}`;
     const started = performance.now();
     const expression = `new Promise((resolve) => chrome.runtime.sendMessage(${JSON.stringify({ type: "NUDGE_FIXTURE_DETECT_VISUAL_PRIVACY", screenshot })}, resolve))`;
@@ -61,7 +84,7 @@ try {
     page.close(); await devtools.send("Target.closeTarget", { targetId: target.targetId });
   }
   await mkdir(output, { recursive: true });
-  await writeFile(resolve(output, "run.json"), `${JSON.stringify({ schemaVersion: 1, generatedAt: new Date().toISOString(), browser: process.env.CHROME_BIN ?? "google-chrome", note: "Synthetic extension-context inference evidence. Contains detector mask geometry, timing, and backend metadata only; no raw screenshots or recognized OCR strings.", fixtures: runs }, null, 2)}\n`);
+  await writeFile(resolve(output, "run.json"), `${JSON.stringify({ schemaVersion: 1, generatedAt: new Date().toISOString(), environment, note: "Synthetic extension-context inference evidence. Contains detector mask geometry, timing, backend metadata, and local test hardware only; no raw screenshots or recognized OCR strings.", fixtures: runs }, null, 2)}\n`);
   process.stdout.write(`Ran extension-local vision on ${runs.length} fixtures; evidence written to ${output}\n`);
   extensionPage.close(); await devtools.send("Target.closeTarget", { targetId: activationTarget.targetId }); devtools.close();
 } finally {

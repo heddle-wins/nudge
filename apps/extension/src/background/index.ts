@@ -69,7 +69,8 @@ async function createRedactedViewport(tabId: number) {
   }
   const target = (await chrome.tabs.get(tabId));
   const rawCapture = await chrome.tabs.captureVisibleTab(target.windowId, { format: "png" });
-  const visualRegions = (await detectVisualPrivacyOffscreen(rawCapture)).map((region) => ({ ...region, coordinateSpace: "image" as const }));
+  const visualScan = await detectVisualPrivacyOffscreen(rawCapture);
+  const visualRegions = visualScan.regions.map((region) => ({ ...region, coordinateSpace: "image" as const }));
   const [rendered] = await chrome.scripting.executeScript({
     target: { tabId },
     func: renderRedactedViewport,
@@ -78,13 +79,15 @@ async function createRedactedViewport(tabId: number) {
   if (typeof rendered?.result !== "string") throw new Error("Nudge could not render the protected viewport.");
   // Re-run the local face/OCR pipeline against the exact redacted pixels. This
   // is the last gate before the image can become a SafeScreenshot.
-  assertNoVisualPrivacyResidue(await detectVisualPrivacyOffscreen(rendered.result));
+  const residueScan = await detectVisualPrivacyOffscreen(rendered.result);
+  assertNoVisualPrivacyResidue(residueScan.regions);
   return {
     screenshot: await createSafeScreenshot(rendered.result, {
       width: viewport?.width ?? target.width ?? 1,
       height: viewport?.height ?? target.height ?? 1
     }),
-    visualRegions
+    visualRegions,
+    visualScan: { scanMs: visualScan.scanMs, backends: visualScan.backends, residueScanMs: residueScan.scanMs }
   };
 }
 
@@ -113,7 +116,8 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
         ...response,
         screenshot: protectedViewport.screenshot,
         visualRedactionCount: (typeof response.visualRedactionCount === "number" ? response.visualRedactionCount : 0) + protectedViewport.visualRegions.length,
-        visualRedactionTypes: [...new Set(protectedViewport.visualRegions.map((region) => region.kind))] satisfies PiiKind[]
+        visualRedactionTypes: [...new Set(protectedViewport.visualRegions.map((region) => region.kind))] satisfies PiiKind[],
+        visualScan: protectedViewport.visualScan
       };
     } catch (error) {
       return {

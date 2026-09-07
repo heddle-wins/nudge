@@ -80,7 +80,18 @@ try {
     const detection = await extensionPage.send("Runtime.evaluate", { expression, awaitPromise: true, returnByValue: true });
     const scan = detection.result.value?.scan;
     if (!scan || !Array.isArray(scan.regions) || !Number.isFinite(scan.scanMs) || !Number.isFinite(scan.modelLoadMs)) throw new Error(`Extension-local detection failed for ${fixture.id}: ${JSON.stringify(detection)}.`);
-    runs.push({ id: fixture.id, surface: fixture.surface, expectedPolicy: fixture.expectedPolicy ?? "redact_then_evaluate", dimensions: fixture.dimensions, extensionRoundTripMs: Math.round((performance.now() - started) * 100) / 100, scan });
+    const extensionRoundTripMs = Math.round((performance.now() - started) * 100) / 100;
+    const masks = scan.regions.map((region) => ({ ...region, coordinateSpace: "image" }));
+    // Render and re-scan inside the extension page. Redacted pixels never enter
+    // the report; this exercises the same renderer used for outgoing images.
+    const residueExpression = `(async () => {
+      const redacted = await globalThis.__nudgeFixtureRender(${JSON.stringify(screenshot)}, ${JSON.stringify(masks)}, ${JSON.stringify(dimensions)});
+      return chrome.runtime.sendMessage({ type: "NUDGE_FIXTURE_DETECT_VISUAL_PRIVACY", screenshot: redacted });
+    })()`;
+    const residueResult = await extensionPage.send("Runtime.evaluate", { expression: residueExpression, awaitPromise: true, returnByValue: true });
+    const residueScan = residueResult.result.value?.scan;
+    if (!residueScan || !Array.isArray(residueScan.regions)) throw new Error(`Residue scan failed for ${fixture.id}`);
+    runs.push({ id: fixture.id, surface: fixture.surface, expectedPolicy: fixture.expectedPolicy ?? "redact_then_evaluate", dimensions, extensionRoundTripMs, scan, residueScan, residueScope: "Visual detector masks plus production renderer padding; excludes DOM fusion. Zero detections does not establish zero leaks." });
     page.close(); await devtools.send("Target.closeTarget", { targetId: target.targetId });
   }
   await mkdir(output, { recursive: true });

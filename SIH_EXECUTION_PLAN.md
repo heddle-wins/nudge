@@ -268,6 +268,8 @@ The internal 41-repository comparison informed this plan. The projects to beat a
 
 ### Delivered checkpoint — 8 September 2026
 
+Residue measurement: the fixture runner now uses the production canvas renderer with visual detector masks and re-scans the resulting pixels in the extension. A validated six-fixture run had five initial masks and zero second-pass detections. The profile/card fixture had zero detections on both passes: this is direct evidence that repeated detection alone cannot establish privacy safety. DOM fusion and independent ground-truth checks remain required. One cold run failed with a missing message receiver; startup readiness needs further investigation.
+
 Capture validation correction: the fixture runner now sets the viewport to the labelled asset size, waits for document completion and fonts, and checks PNG dimensions before inference. A fresh six-fixture run produced five masks, compared with two in the earlier run. Earlier accuracy numbers derived from captures without these checks must be treated as provisional. New ignored artifacts also record browser version, CPU, memory capacity, and the browser GPU device; memory capacity is not measured inference memory consumption. Accuracy and residue evaluation must be repeated with validated captures.
 
 - Merged [PR #12](https://github.com/heddle-wins/nudge/pull/12): protected screenshot contract, redaction manifest, exact-image UI receipt, server integrity check, and multimodal image request shape.

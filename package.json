@@ -10,6 +10,7 @@
     "typecheck": "turbo run typecheck",
     "demo:portal": "python3 -m http.server 4173 --directory demo/public-service-portal",
     "measure:api": "bash scripts/measure-api-latency.sh",
+    "measure:extension-bundle": "node scripts/measure-extension-bundle.mjs",
     "fixtures:rasterize": "node scripts/rasterize-visual-fixtures.mjs"
   },
   "devDependencies": {

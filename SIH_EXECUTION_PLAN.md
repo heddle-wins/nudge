@@ -191,7 +191,7 @@ Both must return the same strictly validated action schema. No extension code sh
 
 - [x] Change the API to accept sanitized structured context plus optional redacted PNG. (PR #12)
 - [x] Use a bounded, typed image payload; reject invalid/tampered receipts. (PR #12; PNG data URL capped at 12 MB.)
-- [ ] Add the OpenAI multimodal adapter for current development.
+- [x] Add the OpenAI multimodal adapter for current development. (PR #22: direct Responses API, low-detail protected image, strict output, `store: false`.)
 - [ ] Include a server prompt explaining redaction placeholders and blacked-out regions.
 - [ ] Return only schema-valid actions using supplied local `targetId`s.
 - [ ] Add the open-weight Qwen2.5-VL-compatible adapter.
@@ -271,9 +271,10 @@ The internal 41-repository comparison informed this plan. The projects to beat a
 - Merged [PR #15](https://github.com/heddle-wins/nudge/pull/15): ONNX Runtime Web 1.20.1 and tested WebGPU-to-WASM local-session fallback. The production build currently packages an approximately 11 MB WASM runtime before model assets, so model choice and lazy loading remain resource gates.
 - Merged [PR #18](https://github.com/heddle-wins/nudge/pull/18): a static regression canary confirms the named browser capture flows to the local canvas renderer and is absent from the reasoning-request serializer. It supplements, but does not replace, the remaining capability-based raw-PNG proof.
 - Merged [PR #20](https://github.com/heddle-wins/nudge/pull/20): provider-boundary test proves the verified receipt becomes the multimodal image part and is omitted from the textual context JSON.
+- Merged [PR #22](https://github.com/heddle-wins/nudge/pull/22): direct OpenAI Responses API adapter, tested separately from the OpenAI-compatible FastRouter path. It has no browser-held key and receives only the verified protected image plus sanitized context.
 - Verification for this checkpoint: API tests (8), contracts and extension TypeScript checks, privacy-core tests (9), and extension tests (12) all passed locally.
 
-**Progress:** Phase 1 is materially started (2 of 5 checklist items checked); Phase 2 runtime is started (1 of 7 checked); Phase 3 transport is started (2 of 6 checked). A stronger raw-pixel egress canary, YuNet/PP-OCR integration, and the full Phase 5 measurement corpus remain the highest-priority work.
+**Progress:** Phase 1 is materially started (2 of 5 checklist items checked); Phase 2 runtime is started (1 of 7 checked); Phase 3 transport is underway (3 of 6 checked). A stronger raw-pixel egress canary, YuNet/PP-OCR integration, and the full Phase 5 measurement corpus remain the highest-priority work.
 
 Continue Phase 1 and Phase 2 together:
 

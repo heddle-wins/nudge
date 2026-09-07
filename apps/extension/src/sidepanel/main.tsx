@@ -5,7 +5,7 @@ import type { RedactionDetail } from "@nudge/privacy-core";
 import "./styles.css";
 
 type PageIdentity = { tabId: number; title: string; origin: string; hostname: string; faviconUrl: string };
-type ReadyView = { status: "ready"; context: SanitizedPageContext; redactionDetails: RedactionDetail[]; visualRedactionCount: number; visualRedactionTypes: PiiKind[]; visualScan?: { scanMs: number; residueScanMs: number; backends: Array<"webgpu" | "wasm"> }; screenshot?: SafeScreenshot; viewportError?: string; page: PageIdentity };
+type ReadyView = { status: "ready"; context: SanitizedPageContext; redactionDetails: RedactionDetail[]; visualRedactionCount: number; visualRedactionTypes: PiiKind[]; visualScan?: { scanMs: number; modelLoadMs: number; residueScanMs: number; backends: Array<"webgpu" | "wasm"> }; screenshot?: SafeScreenshot; viewportError?: string; page: PageIdentity };
 type UnsupportedView = { status: "error"; label: string };
 type ViewState = { status: "idle" | "loading" } | UnsupportedView | ReadyView;
 type ConversationItem =
@@ -155,7 +155,7 @@ function PrivacySummary({ view, openPanel, onOpenPanelChange, onMarkPrivate, onM
       <div className="redaction-details-panel">
         {view.redactionDetails.length > 0 ? <ul>{view.redactionDetails.map((detail, index) => <li key={`${detail.kind}-${detail.location}-${index}`}><strong>{piiLabel(detail.kind)}</strong><span>{detail.location}</span></li>)}</ul> : <p>No DOM-sensitive values were found on this page.</p>}
         {view.visualRedactionCount > 0 && <p className="visual-scan-summary">{view.visualRedactionCount} visual mask{view.visualRedactionCount === 1 ? "" : "s"}: {view.visualRedactionTypes.map(piiLabel).join(", ") || "local privacy detection"}.</p>}
-        {view.visualScan && <p className="visual-scan-summary">Scanned locally in {Math.round(view.visualScan.scanMs)} ms via {view.visualScan.backends.join(" + ")}; redacted pixels were checked again in {Math.round(view.visualScan.residueScanMs)} ms.</p>}
+        {view.visualScan && <p className="visual-scan-summary">Scanned locally in {Math.round(view.visualScan.scanMs)} ms via {view.visualScan.backends.join(" + ")} (model load {Math.round(view.visualScan.modelLoadMs)} ms); redacted pixels were checked again in {Math.round(view.visualScan.residueScanMs)} ms.</p>}
         {view.screenshot && <><img className="protected-preview" src={view.screenshot.dataUrl} alt="Exact locally redacted page view that will be sent to the reasoning server" /><p className="visual-scan-summary">Exact outgoing view · receipt {view.screenshot.sha256.slice(0, 12)}…</p></>}
         {view.viewportError && <p className="drawer-error">{view.viewportError}</p>}
       </div>
@@ -203,9 +203,9 @@ function ProposalBubble({ proposal, onExecute }: { proposal: NextActionResponse;
 function piiLabel(kind: RedactionDetail["kind"]): string { return ({ face: "Face", password: "Password", email: "Email", phone: "Phone", government_id: "Government ID", payment: "Payment detail", account_number: "Account number", address: "Address", date_of_birth: "Date of birth", token: "Token", user_marked: "Marked private" } as const)[kind]; }
 function validVisualScan(value: unknown): ReadyView["visualScan"] {
   if (!value || typeof value !== "object") return undefined;
-  const scan = value as { scanMs?: unknown; residueScanMs?: unknown; backends?: unknown };
-  if (!Number.isFinite(scan.scanMs) || !Number.isFinite(scan.residueScanMs) || !Array.isArray(scan.backends) || !scan.backends.every((backend) => backend === "webgpu" || backend === "wasm")) return undefined;
-  return { scanMs: scan.scanMs as number, residueScanMs: scan.residueScanMs as number, backends: scan.backends as Array<"webgpu" | "wasm"> };
+  const scan = value as { scanMs?: unknown; modelLoadMs?: unknown; residueScanMs?: unknown; backends?: unknown };
+  if (!Number.isFinite(scan.scanMs) || !Number.isFinite(scan.modelLoadMs) || !Number.isFinite(scan.residueScanMs) || !Array.isArray(scan.backends) || !scan.backends.every((backend) => backend === "webgpu" || backend === "wasm")) return undefined;
+  return { scanMs: scan.scanMs as number, modelLoadMs: scan.modelLoadMs as number, residueScanMs: scan.residueScanMs as number, backends: scan.backends as Array<"webgpu" | "wasm"> };
 }
 function safeHostname(origin: string) { try { return new URL(origin).hostname; } catch { return origin; } }
 function shortTitle(title: string) { return title.length > 31 ? `${title.slice(0, 30).trimEnd()}…` : title; }

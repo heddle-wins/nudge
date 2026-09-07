@@ -12,7 +12,7 @@ describe("captured-pixel egress canary", () => {
     expect(backgroundSource).toMatch(/const rawCapture = await chrome\.tabs\.captureVisibleTab/);
     expect(backgroundSource).toMatch(/await detectVisualPrivacyOffscreen\(rawCapture\)/);
     expect(backgroundSource).toMatch(/args: \[rawCapture, \[\.\.\.inspection\.visualRedactions, \.\.\.visualRegions\]/);
-    expect(backgroundSource).toMatch(/assertNoVisualPrivacyResidue\(await detectVisualPrivacyOffscreen\(rendered\.result\)\)/);
+    expect(backgroundSource).toMatch(/const residueScan = await detectVisualPrivacyOffscreen\(rendered\.result\);\s+assertNoVisualPrivacyResidue\(residueScan\.regions\)/);
     expect(backgroundSource).toMatch(/screenshot: await createSafeScreenshot\(rendered\.result/);
   });
 

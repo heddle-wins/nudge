@@ -1,6 +1,8 @@
 import type { PiiKind } from "@nudge/contracts";
+import type { VisionBackend } from "./runtime";
 
 export type VisualPrivacyRegion = { x: number; y: number; width: number; height: number; score: number; kind: PiiKind };
+export type VisualPrivacyScan = { regions: VisualPrivacyRegion[]; scanMs: number; backends: VisionBackend[] };
 
 const OFFSCREEN_PATH = "src/offscreen/index.html";
 let creatingDocument: Promise<void> | undefined;
@@ -21,12 +23,12 @@ async function ensureVisionDocument() {
 }
 
 /** Sends raw pixels only to Nudge's own local offscreen document. */
-export async function detectVisualPrivacyOffscreen(screenshot: string): Promise<VisualPrivacyRegion[]> {
+export async function detectVisualPrivacyOffscreen(screenshot: string): Promise<VisualPrivacyScan> {
   await ensureVisionDocument();
   const requestId = crypto.randomUUID();
   const response = await chrome.runtime.sendMessage({ type: "NUDGE_OFFSCREEN_DETECT_VISUAL_PII", requestId, screenshot });
-  if (!response?.ok || response.requestId !== requestId || !Array.isArray(response.regions)) {
+  if (!response?.ok || response.requestId !== requestId || !Array.isArray(response.regions) || !Number.isFinite(response.scanMs) || !Array.isArray(response.backends) || !response.backends.every((backend: unknown) => backend === "webgpu" || backend === "wasm")) {
     throw new Error("Nudge could not complete local visual privacy detection.");
   }
-  return response.regions as VisualPrivacyRegion[];
+  return { regions: response.regions as VisualPrivacyRegion[], scanMs: response.scanMs, backends: response.backends as VisionBackend[] };
 }

@@ -9,7 +9,9 @@ describe("offscreen vision client", () => {
     const sendMessage = vi.fn().mockResolvedValue({
       ok: true,
       requestId: "fixed-request",
-      regions: [{ x: 1, y: 2, width: 3, height: 4, score: 0.9, kind: "face" }]
+      regions: [{ x: 1, y: 2, width: 3, height: 4, score: 0.9, kind: "face" }],
+      scanMs: 42.5,
+      backends: ["wasm"]
     });
     vi.stubGlobal("crypto", { randomUUID: () => "fixed-request" });
     vi.stubGlobal("chrome", {
@@ -22,9 +24,9 @@ describe("offscreen vision client", () => {
       offscreen: { Reason: { WORKERS: "WORKERS" }, createDocument }
     });
 
-    await expect(detectVisualPrivacyOffscreen("data:image/png;base64,cmF3LWxvY2FsLW9ubHk=")).resolves.toEqual([
-      { x: 1, y: 2, width: 3, height: 4, score: 0.9, kind: "face" }
-    ]);
+    await expect(detectVisualPrivacyOffscreen("data:image/png;base64,cmF3LWxvY2FsLW9ubHk=")).resolves.toEqual({
+      regions: [{ x: 1, y: 2, width: 3, height: 4, score: 0.9, kind: "face" }], scanMs: 42.5, backends: ["wasm"]
+    });
     expect(createDocument).toHaveBeenCalledWith(expect.objectContaining({
       url: "src/offscreen/index.html", reasons: ["WORKERS"]
     }));

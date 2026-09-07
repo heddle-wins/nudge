@@ -164,6 +164,60 @@ def test_openai_responses_provider_sends_the_receipt_as_a_low_detail_image(monke
     assert "blacked-out image regions" in captured["json"]["instructions"]
 
 
+def test_qwen_compatible_provider_sends_only_sanitized_context_and_receipt(monkeypatch):
+    from app.config import Settings
+    from app.providers import QwenOpenAICompatibleProvider
+    from app.schemas import NextActionRequest
+
+    payload = fixture_payload()
+    image = b"redacted-png-fixture"
+    data_url = "data:image/png;base64," + base64.b64encode(image).decode()
+    payload["screenshot"] = {
+        "kind": "nudge-redacted-screenshot", "mimeType": "image/png", "dataUrl": data_url,
+        "sha256": hashlib.sha256(image).hexdigest(), "width": 100, "height": 50,
+    }
+    captured: dict = {}
+
+    class FakeClient:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_args):
+            return False
+
+        async def post(self, path, json, headers):
+            captured.update(path=path, json=json, headers=headers)
+            return httpx.Response(200, json={"choices": [{"message": {"content": '{"action":{"type":"click","targetId":"el_track"},"rationale":"Use the visible control.","confidence":0.8,"requiresConfirmation":true}'}}]})
+
+    monkeypatch.setattr("app.providers.httpx.AsyncClient", lambda **_kwargs: FakeClient())
+    settings = Settings(NUDGE_PROVIDER="qwen", NUDGE_MODEL="Qwen2.5-VL-7B-Instruct", QWEN_BASE_URL="https://qwen.example/v1", QWEN_API_KEY="test-key")
+    result = asyncio.run(QwenOpenAICompatibleProvider(settings).next_action(NextActionRequest.model_validate(payload)))
+
+    content = captured["json"]["messages"][1]["content"]
+    assert result.action.targetId == "el_track"
+    assert captured["path"] == "/chat/completions"
+    assert captured["headers"]["Authorization"] == "Bearer test-key"
+    assert content[1] == {"type": "image_url", "image_url": {"url": data_url}}
+    assert "screenshot" not in content[0]["text"]
+    assert "blacked-out image regions" in captured["json"]["messages"][0]["content"]
+
+
+def test_qwen_provider_requires_a_server_only_endpoint_and_key():
+    from pydantic import ValidationError
+    from app.config import Settings
+
+    for settings in [
+        {"NUDGE_PROVIDER": "qwen", "QWEN_API_KEY": "test-key", "QWEN_BASE_URL": ""},
+        {"NUDGE_PROVIDER": "qwen", "QWEN_BASE_URL": "https://qwen.example/v1", "QWEN_API_KEY": ""},
+    ]:
+        try:
+            Settings(**settings)
+        except ValidationError as error:
+            assert "QWEN_API_KEY and QWEN_BASE_URL" in str(error)
+        else:
+            raise AssertionError("Qwen configuration without both endpoint and key must fail")
+
+
 def test_server_rejects_obvious_unredacted_email_without_echoing_it():
     payload = fixture_payload()
     payload["context"]["page"]["elements"][1]["value"] = "person@example.com"

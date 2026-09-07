@@ -43,3 +43,16 @@ FASTROUTER_API_KEY=your-server-only-key
 ```
 
 Never put this key in the extension, browser storage, Vercel environment, or Git. The model is requested with a strict JSON schema; the server independently rejects unknown, hidden, disabled, role-incompatible, malformed, and navigation actions. Every proposal requires confirmation. The extension is the final enforcement point: it re-resolves the live target and applies its local execution policy before any action can run.
+
+## Deploy with a Qwen2.5-VL-compatible endpoint
+
+Nudge can use a self-hosted or managed endpoint that implements OpenAI-compatible `/chat/completions` multimodal requests. Configure its server-only endpoint and key explicitly; no Qwen vendor URL is embedded in Nudge.
+
+```env
+NUDGE_PROVIDER=qwen
+NUDGE_MODEL=Qwen2.5-VL-7B-Instruct
+QWEN_BASE_URL=https://your-qwen-compatible-endpoint/v1
+QWEN_API_KEY=your-server-only-key
+```
+
+The adapter sends only sanitized context plus the verified redacted PNG. It applies the same redaction-aware prompt and strict action JSON schema as the other providers.

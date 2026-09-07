@@ -178,7 +178,7 @@ Both must return the same strictly validated action schema. No extension code sh
 ### Phase 2 — Add real local vision
 
 - [x] Bundle ONNX Runtime Web and configure WebGPU/WASM fallback. (PR #15; session creation is WebGPU-first, local WASM fallback, single-threaded.)
-- [ ] Integrate YuNet face detection in an offscreen worker.
+- [ ] Integrate YuNet face detection in an offscreen worker. PRs #24–#26 bundle the INT8 model, decode it locally, and add returned face boxes to screenshot masking in the extension service worker. Move that work into an offscreen worker before counting this as complete.
 - [ ] Integrate PP-OCR text detection and recognition in an offscreen worker.
 - [ ] Detect PII in OCR text with existing and expanded Indian PII rules.
 - [ ] Add MobileViT screen-state classification.
@@ -272,9 +272,10 @@ The internal 41-repository comparison informed this plan. The projects to beat a
 - Merged [PR #18](https://github.com/heddle-wins/nudge/pull/18): a static regression canary confirms the named browser capture flows to the local canvas renderer and is absent from the reasoning-request serializer. It supplements, but does not replace, the remaining capability-based raw-PNG proof.
 - Merged [PR #20](https://github.com/heddle-wins/nudge/pull/20): provider-boundary test proves the verified receipt becomes the multimodal image part and is omitted from the textual context JSON.
 - Merged [PR #22](https://github.com/heddle-wins/nudge/pull/22): direct OpenAI Responses API adapter, tested separately from the OpenAI-compatible FastRouter path. It has no browser-held key and receives only the verified protected image plus sanitized context.
+- Merged [PRs #24–#26](https://github.com/heddle-wins/nudge/pull/26): bundled OpenCV Zoo INT8 YuNet (100 KB, SHA-256 inventoried), decoded all twelve output heads locally, and connected face boxes to the protected screenshot canvas. This is detection/redaction only—never facial recognition. Offscreen isolation and OCR still remain.
 - Verification for this checkpoint: API tests (8), contracts and extension TypeScript checks, privacy-core tests (9), and extension tests (12) all passed locally.
 
-**Progress:** Phase 1 is materially started (2 of 5 checklist items checked); Phase 2 runtime is started (1 of 7 checked); Phase 3 transport is underway (3 of 6 checked). A stronger raw-pixel egress canary, YuNet/PP-OCR integration, and the full Phase 5 measurement corpus remain the highest-priority work.
+**Progress:** Phase 1 is materially started (2 of 5 checklist items checked); Phase 2 has a working local runtime and face-redaction pipeline, but only 1 of 7 items is fully complete because offscreen isolation, OCR, fusion, and residue verification are still missing; Phase 3 is underway (3 of 6 checked). The next priority is moving vision off the service worker, then PP-OCR.
 
 Continue Phase 1 and Phase 2 together:
 

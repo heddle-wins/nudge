@@ -64,7 +64,13 @@ chrome.runtime.onMessage.addListener((message: VisionRequest, _sender, sendRespo
     })
     .then(
       (result) => sendResponse({ ok: true, requestId: message.requestId, ...result }),
-      () => sendResponse({ ok: false, requestId: message.requestId, error: "Nudge could not complete local visual privacy detection." })
+      (error) => sendResponse({
+        ok: false,
+        requestId: message.requestId,
+        error: import.meta.env.MODE === "fixture" && error instanceof Error
+          ? error.message
+          : "Nudge could not complete local visual privacy detection."
+      })
     );
   return true;
 });

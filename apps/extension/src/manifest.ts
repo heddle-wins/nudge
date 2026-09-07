@@ -8,7 +8,9 @@ const manifest: ManifestV3Export = {
   permissions: ["activeTab", "tabs", "sidePanel", "scripting", "storage", "offscreen"],
   host_permissions: ["<all_urls>"],
   content_security_policy: {
-    extension_pages: "script-src 'self'; object-src 'self'; img-src 'self' data: http: https:"
+    // ONNX Runtime Web needs this CSP token to instantiate its bundled local WASM.
+    // It does not permit remote scripts or JavaScript eval.
+    extension_pages: "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'; img-src 'self' data: http: https:"
   },
   background: {
     service_worker: "src/background/index.ts",

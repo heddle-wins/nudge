@@ -177,7 +177,7 @@ Both must return the same strictly validated action schema. No extension code sh
 
 ### Phase 2 — Add real local vision
 
-- [ ] Bundle ONNX Runtime Web and configure WebGPU/WASM fallback.
+- [x] Bundle ONNX Runtime Web and configure WebGPU/WASM fallback. (PR #15; session creation is WebGPU-first, local WASM fallback, single-threaded.)
 - [ ] Integrate YuNet face detection in an offscreen worker.
 - [ ] Integrate PP-OCR text detection and recognition in an offscreen worker.
 - [ ] Detect PII in OCR text with existing and expanded Indian PII rules.
@@ -268,9 +268,10 @@ The internal 41-repository comparison informed this plan. The projects to beat a
 
 - Merged [PR #12](https://github.com/heddle-wins/nudge/pull/12): protected screenshot contract, redaction manifest, exact-image UI receipt, server integrity check, and multimodal image request shape.
 - Merged [PR #13](https://github.com/heddle-wins/nudge/pull/13): one `createSafeScreenshot()` egress constructor plus a raw/non-PNG rejection canary.
+- Merged [PR #15](https://github.com/heddle-wins/nudge/pull/15): ONNX Runtime Web 1.20.1 and tested WebGPU-to-WASM local-session fallback. The production build currently packages an approximately 11 MB WASM runtime before model assets, so model choice and lazy loading remain resource gates.
 - Verification for this checkpoint: API tests (8), contracts and extension TypeScript checks, privacy-core tests (9), and extension tests (12) all passed locally.
 
-**Progress:** Phase 1 is materially started (3 of 5 checklist items checked); Phase 3 transport is started (2 of 6 checked). Phase 2 local vision and Phase 5 measurement remain entirely outstanding, and are the highest-priority work.
+**Progress:** Phase 1 is materially started (3 of 5 checklist items checked); Phase 2 runtime is started (1 of 7 checked); Phase 3 transport is started (2 of 6 checked). YuNet/PP-OCR integration and the full Phase 5 measurement corpus remain the highest-priority work.
 
 Continue Phase 1 and Phase 2 together:
 

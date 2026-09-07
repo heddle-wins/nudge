@@ -169,7 +169,7 @@ Both must return the same strictly validated action schema. No extension code sh
 
 - [x] Add `SafeScreenshot`, `RedactionManifest`, and `VisionReasoningRequest` contracts. (PR #12)
 - [ ] Move all screenshot creation/redaction into a dedicated local module.
-- [x] Add the one-way egress gate and raw-image canary tests. (PR #13: only a locally redacted PNG can create an outbound receipt; server verifies its SHA-256.)
+- [ ] Add the one-way egress gate and raw-image canary tests. PR #13 isolates the constructor and rejects non-PNG inputs, but an equivalent raw PNG cannot yet be distinguished at runtime; add a dedicated capture/redaction capability and a request-body canary.
 - [x] Add screenshot redaction preview to the existing chat UI. (PR #12: preview and request use the same receipt.)
 - [ ] Preserve the existing DOM sanitization and local action policy.
 
@@ -267,11 +267,11 @@ The internal 41-repository comparison informed this plan. The projects to beat a
 ### Delivered checkpoint — 8 September 2026
 
 - Merged [PR #12](https://github.com/heddle-wins/nudge/pull/12): protected screenshot contract, redaction manifest, exact-image UI receipt, server integrity check, and multimodal image request shape.
-- Merged [PR #13](https://github.com/heddle-wins/nudge/pull/13): one `createSafeScreenshot()` egress constructor plus a raw/non-PNG rejection canary.
+- Merged [PR #13](https://github.com/heddle-wins/nudge/pull/13): one `createSafeScreenshot()` egress constructor plus a non-PNG rejection canary. It is not yet proof against an arbitrary raw PNG; that remains a Phase 1 task.
 - Merged [PR #15](https://github.com/heddle-wins/nudge/pull/15): ONNX Runtime Web 1.20.1 and tested WebGPU-to-WASM local-session fallback. The production build currently packages an approximately 11 MB WASM runtime before model assets, so model choice and lazy loading remain resource gates.
 - Verification for this checkpoint: API tests (8), contracts and extension TypeScript checks, privacy-core tests (9), and extension tests (12) all passed locally.
 
-**Progress:** Phase 1 is materially started (3 of 5 checklist items checked); Phase 2 runtime is started (1 of 7 checked); Phase 3 transport is started (2 of 6 checked). YuNet/PP-OCR integration and the full Phase 5 measurement corpus remain the highest-priority work.
+**Progress:** Phase 1 is materially started (2 of 5 checklist items checked); Phase 2 runtime is started (1 of 7 checked); Phase 3 transport is started (2 of 6 checked). A stronger raw-pixel egress canary, YuNet/PP-OCR integration, and the full Phase 5 measurement corpus remain the highest-priority work.
 
 Continue Phase 1 and Phase 2 together:
 

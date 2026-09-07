@@ -191,7 +191,7 @@ export function createPrivacyInspection(raw: RawPageContext): PrivacyInspection 
   const sanitizedElements = raw.elements.map(sanitizeElement);
   const title = sanitizeText(raw.title);
   const manualRegions = raw.userMarkedVisualRegions ?? [];
-  const types = unique([...title.redactions, ...sanitizedElements.flatMap(({ redactions }) => redactions), ...(manualRegions.length ? ["user_marked" as const] : [])]);
+  const types = unique([...title.redactions, ...sanitizedElements.flatMap(({ redactions }) => redactions)]);
   const url = new URL(raw.url);
   const redactionDetails: RedactionDetail[] = title.redactions.map((kind) => ({
     kind,
@@ -226,7 +226,7 @@ export function createPrivacyInspection(raw: RawPageContext): PrivacyInspection 
         title: title.value,
         elements: sanitizedElements.map(({ element }) => element),
         redactions: {
-          count: title.redactions.length + sanitizedElements.reduce((total, item) => total + item.redactions.length, 0) + manualRegions.length,
+          count: title.redactions.length + sanitizedElements.reduce((total, item) => total + item.redactions.length, 0),
           types
         }
       }

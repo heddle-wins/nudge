@@ -136,7 +136,7 @@ describe("privacy-core", () => {
     expect(inspection.redactionDetails).toEqual([]);
   });
 
-  it("adds user-drawn visual regions as local masks while exporting only a safe count and type", () => {
+  it("adds user-drawn visual regions as local masks without exporting their geometry into page context", () => {
     const inspection = createPrivacyInspection({
       url: "https://example.gov.in",
       title: "Example",
@@ -145,7 +145,7 @@ describe("privacy-core", () => {
     });
 
     expect(inspection.visualRedactions).toContainEqual({ x: 25, y: 45, width: 180, height: 75, kind: "user_marked" });
-    expect(inspection.context.page.redactions).toEqual({ count: 1, types: ["user_marked"] });
+    expect(inspection.context.page.redactions).toEqual({ count: 0, types: [] });
     expect(inspection.redactionDetails).toContainEqual({ kind: "user_marked", location: "User-marked screen area 1", source: "visible_text" });
     expect(JSON.stringify(inspection.context)).not.toContain('"x"');
   });

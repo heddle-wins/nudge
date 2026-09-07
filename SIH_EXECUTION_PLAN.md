@@ -49,7 +49,7 @@ The judging criteria are not a generic security checklist. They give marks for v
 | Screenshot PII redaction | **Missing** | Text inside images/canvas/PDFs and profile photos cannot be safely handled. |
 | Screenshot to VLM | Working baseline | The exact locally redacted PNG now has a typed receipt, SHA-256 integrity check, visible preview, and one server request path. It remains DOM-mask-only until OCR/face perception lands. |
 | Multimodal reasoning provider | Working baseline | The OpenAI-compatible provider path sends the verified protected PNG as an image part. An explicit OpenAI adapter and open-weight Qwen adapter remain to do. |
-| Measured SIH evaluation | In progress | A frozen synthetic fixture corpus and deterministic redaction metric primitive exist; controlled browser inference, accuracy reporting, resource benchmarks, and p50/p95 remain. |
+| Measured SIH evaluation | In progress | Frozen synthetic fixtures now rasterize reproducibly in local Chrome and have deterministic redaction metrics; extension-context inference, accuracy reporting, resource benchmarks, and p50/p95 remain. |
 | Firefox build and test | **Missing** | The current implementation is Chrome-oriented. |
 
 ## 4. The architecture we will build
@@ -281,15 +281,16 @@ The internal 41-repository comparison informed this plan. The projects to beat a
 - Merged [PR #36](https://github.com/heddle-wins/nudge/pull/36): added a final local residue gate over the exact rendered screenshot. It fails closed if face detection or OCR finds remaining protected visual content; raw OCR text stays in the offscreen document.
 - Merged [PR #38](https://github.com/heddle-wins/nudge/pull/38): added deterministic rectangle metrics for fixture coverage, residual sensitive pixels, mask area, over-redaction, and per-kind region counts. A region is only protected at 99% pixel coverage.
 - Merged [PR #39](https://github.com/heddle-wins/nudge/pull/39): added the frozen, synthetic visual-privacy fixture corpus and manifest: DOM credentials, screenshot-only Indian IDs, canvas-like contact data, profile/avatar plus test payment card, Devanagari/adversarial formatting, and an unknown visual surface that must be withheld.
+- Merged [PR #41](https://github.com/heddle-wins/nudge/pull/41): added `npm run fixtures:rasterize`, which renders all six fixture sources through local headless Chrome and records local PNG SHA-256s, dimensions, expected policy, and rasterization timing. Its artifacts are ignored and it makes no inference/accuracy claim.
 - Verification for this checkpoint: API tests (10), TypeScript checks, privacy-core tests (10), extension tests (29), and the extension production build all passed locally.
 
-**Progress:** Phase 1 is materially started (2 of 5 checklist items checked); Phase 2 has 6 of 7 items complete (local runtime, offscreen YuNet face redaction, offscreen PP-OCR, local OCR PII rules, fusion, and exact-image residue verification). Screen-state classification remains. Phase 3 is underway (3 of 6 checked). Phase 5 has 2 of 6 items complete: fixture inputs and labels are frozen, but no inference/precision/recall/resource/latency report exists. Before changing the current image/canvas/iframe block rule, the next priority is a controlled browser fixture run that captures the local model masks and timings.
+**Progress:** Phase 1 is materially started (2 of 5 checklist items checked); Phase 2 has 6 of 7 items complete (local runtime, offscreen YuNet face redaction, offscreen PP-OCR, local OCR PII rules, fusion, and exact-image residue verification). Screen-state classification remains. Phase 3 is underway (3 of 6 checked). Phase 5 has 2 of 6 items complete: fixtures, labels, local Chrome rasterization, and deterministic metric primitives exist, but no extension-context inference/precision/recall/resource/latency report exists. Before changing the current image/canvas/iframe block rule, the next priority is an extension-context fixture run that captures the local model masks and timings.
 
 Continue Phase 1 and Phase 2 together:
 
 1. Define the safe screenshot/redaction contracts and one-way egress gate.
 2. Add MobileViT screen-state classification, with a measured model-size and fallback budget.
-3. Build a controlled browser fixture runner for profile photos, canvas/PDF-like text, Indian PII, and unknown surfaces; record local mask outputs and timings, then calculate the frozen manifest's metrics.
+3. Extend the controlled Chrome fixture runner into extension context so it records local YuNet/PP-OCR mask outputs and timings, then calculate the frozen manifest's metrics.
 4. Render the exact redacted blob in the chat before sending it anywhere.
 
 That is the shortest path from the current secure DOM agent to a credible SIH26171 submission.

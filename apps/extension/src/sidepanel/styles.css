@@ -26,6 +26,8 @@ button { cursor: pointer; }
 .redaction-details-panel ul { display: grid; gap: .38rem; margin: 0; padding: 0; list-style: none; }
 .redaction-details-panel li { display: grid; gap: .06rem; color: #dedede; font-size: .7rem; }
 .redaction-details-panel li span { overflow: hidden; color: #aaa; font-size: .66rem; text-overflow: ellipsis; white-space: nowrap; }
+.visual-scan-summary { margin: .55rem 0 0; color: #aaa; font-size: .67rem; line-height: 1.4; }
+.protected-preview { display: block; width: 100%; max-height: 10rem; margin-top: .58rem; border: 1px solid #444; border-radius: .42rem; object-fit: contain; object-position: top; }
 .privacy-controls > summary { display: flex; align-items: center; height: 1.72rem; gap: .22rem; list-style: none; border: 0; border-radius: .35rem; background: #292929; color: #cfcfcf; cursor: pointer; padding: 0 .42rem; font-size: .68rem; font-weight: 600; }
 .privacy-controls > summary::-webkit-details-marker { display: none; }
 .privacy-controls > summary svg { width: .82rem; height: .82rem; stroke-width: 1.5; }

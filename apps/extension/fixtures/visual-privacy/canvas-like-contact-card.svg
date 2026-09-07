@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="450" viewBox="0 0 800 450">
+  <rect width="800" height="450" fill="#111827"/><rect x="48" y="48" width="704" height="354" rx="24" fill="#1f2937"/>
+  <circle cx="122" cy="124" r="38" fill="#22c55e"/><text x="185" y="132" font-family="Arial" font-size="29" fill="#f8fafc">Support callback card</text>
+  <text x="86" y="202" font-family="Arial" font-size="27" fill="#f8fafc">support.demo@example.test</text>
+  <text x="86" y="253" font-family="Arial" font-size="27" fill="#f8fafc">+91 98765 43210</text>
+  <text x="86" y="314" font-family="Arial" font-size="17" fill="#94a3b8">Canvas-rendered receipt preview</text>
+</svg>

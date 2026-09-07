@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="450" viewBox="0 0 800 450">
+  <rect width="800" height="450" fill="#eff6ff"/><rect x="40" y="40" width="720" height="370" rx="20" fill="white"/>
+  <circle cx="163" cy="176" r="82" fill="#fed7aa"/><path d="M88 154c4-100 150-98 153 0-36-23-110-25-153 0" fill="#3f2a21"/><circle cx="134" cy="178" r="7" fill="#172033"/><circle cx="191" cy="178" r="7" fill="#172033"/><path d="M136 215q27 25 55 0" stroke="#172033" stroke-width="6" fill="none"/>
+  <text x="70" y="300" font-family="Arial" font-size="24" fill="#172033">Demo user</text>
+  <rect x="370" y="130" width="330" height="180" rx="18" fill="#1d4ed8"/><text x="405" y="180" font-family="Arial" font-size="20" fill="white">DEMO BANK</text><text x="388" y="238" font-family="monospace" font-size="27" fill="white">4111 1111 1111 1111</text><text x="390" y="278" font-family="Arial" font-size="15" fill="white">TEST CARD — NOT VALID</text>
+</svg>

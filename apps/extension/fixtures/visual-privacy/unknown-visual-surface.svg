@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="450" viewBox="0 0 800 450">
+  <rect width="800" height="450" fill="#0f172a"/><path d="M0 330 140 170l120 105 130-175 155 225 110-90 145 95v120H0z" fill="#334155"/>
+  <text x="58" y="77" font-family="Arial" font-size="28" fill="#f8fafc">Unsupported visual surface</text>
+  <text x="58" y="116" font-family="Arial" font-size="18" fill="#cbd5e1">Expected policy: do not export visual context.</text>
+</svg>

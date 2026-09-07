@@ -188,6 +188,27 @@ async function dispatchApprovedAction(tabId: number, request: Parameters<typeof 
   return executionResultSchema.parse(injection.result);
 }
 
+type ActionReinspection =
+  | { ok: true; context: SanitizedPageContext; expectedTarget?: SanitizedPageContext["page"]["elements"][number] }
+  | { ok: false; result: ExecutionResult };
+
+/** Re-collect local semantics at confirmation time; proposal-time context is never enough to execute. */
+async function reinspectActionContext(tabId: number, proposal: NextActionResponse, proposalContext: SanitizedPageContext): Promise<ActionReinspection> {
+  const [injection] = await chrome.scripting.executeScript({ target: { tabId }, func: collectRawPageContext });
+  if (!injection?.result) return { ok: false, result: { status: "blocked", outcome: "stale_target", message: "Nudge could not re-inspect this page. Inspect again before continuing." } };
+  const context = createOutboundSafeContext(injection.result);
+  if (context.page.urlOrigin !== proposalContext.page.urlOrigin) {
+    return { ok: false, result: { status: "blocked", outcome: "page_changed", message: "The page changed after the proposal. Inspect again before continuing." } };
+  }
+  if (!proposal.action.targetId) return { ok: true, context };
+  const proposedTarget = proposalContext.page.elements.find((element) => element.id === proposal.action.targetId);
+  const freshTarget = context.page.elements.find((element) => element.id === proposal.action.targetId);
+  if (!proposedTarget || !freshTarget || !freshTarget.state.visible || !freshTarget.state.enabled || freshTarget.role !== proposedTarget.role || freshTarget.name !== proposedTarget.name) {
+    return { ok: false, result: { status: "blocked", outcome: "stale_target", message: "The proposed control changed after the proposal. Inspect again before continuing." } };
+  }
+  return { ok: true, context, expectedTarget: freshTarget };
+}
+
 async function executeAction(tabId: number, rawProposal: unknown, rawContext: unknown, rawLocalValue: unknown) {
   const proposal = nextActionResponseSchema.parse(rawProposal);
   const context = sanitizedPageContextSchema.parse(rawContext) as SanitizedPageContext;
@@ -197,15 +218,17 @@ async function executeAction(tabId: number, rawProposal: unknown, rawContext: un
   const expectedPageOrigin = new URL(tab.url).origin;
   if (expectedPageOrigin !== context.page.urlOrigin) throw new Error("The page changed after the proposal. Inspect again before continuing.");
 
-  const expectedTarget = proposal.action.targetId
-    ? context.page.elements.find((element) => element.id === proposal.action.targetId)
-    : undefined;
+  const reinspection = await reinspectActionContext(tabId, proposal, context);
   const localValue = proposal.action.type === "type" && typeof rawLocalValue === "string" ? rawLocalValue : undefined;
-  const request = executionRequestSchema.parse({ action: proposal.action, expectedPageOrigin, ...(expectedTarget ? { expectedTarget } : {}), ...(localValue ? { localValue } : {}) });
-  const policy = evaluateExecutionPolicy(request, context);
-  const result: ExecutionResult = policy.allowed
-    ? await dispatchApprovedAction(tabId, request)
-    : { status: "blocked", outcome: policy.outcome, message: policy.message };
+  const result: ExecutionResult = !reinspection.ok
+    ? reinspection.result
+    : await (async () => {
+      const request = executionRequestSchema.parse({ action: proposal.action, expectedPageOrigin, ...(reinspection.expectedTarget ? { expectedTarget: reinspection.expectedTarget } : {}), ...(localValue ? { localValue } : {}) });
+      const policy = evaluateExecutionPolicy(request, reinspection.context);
+      return policy.allowed
+        ? dispatchApprovedAction(tabId, request)
+        : { status: "blocked" as const, outcome: policy.outcome, message: policy.message };
+    })();
   const audit = await appendAudit(proposal.action.type, proposal.action.targetId, result);
   return { result, audit };
 }

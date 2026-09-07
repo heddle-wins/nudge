@@ -48,7 +48,7 @@ The judging criteria are not a generic security checklist. They give marks for v
 | Client-side CV model | **Missing** | No face model, screenshot OCR, screen-state model, or visual UI understanding runs locally. |
 | Screenshot PII redaction | **Missing** | Text inside images/canvas/PDFs and profile photos cannot be safely handled. |
 | Screenshot to VLM | Working baseline | The exact locally redacted PNG now has a typed receipt, SHA-256 integrity check, visible preview, and one server request path. It remains DOM-mask-only until OCR/face perception lands. |
-| Multimodal reasoning provider | Working baseline | The OpenAI-compatible provider path sends the verified protected PNG as an image part. An explicit OpenAI adapter and open-weight Qwen adapter remain to do. |
+| Multimodal reasoning provider | Working | FastRouter-compatible, direct OpenAI Responses, and explicitly configured Qwen2.5-VL-compatible server adapters send only the verified protected PNG plus sanitized context. |
 | Measured SIH evaluation | In progress | Frozen synthetic fixtures now rasterize reproducibly in local Chrome and have deterministic redaction metrics; extension-context inference, accuracy reporting, resource benchmarks, and p50/p95 remain. |
 | Firefox build and test | Documented boundary | Nudge is Chrome/Chromium-only today; no Firefox compatibility is claimed. See [`docs/browser-support.md`](./docs/browser-support.md). |
 
@@ -196,7 +196,7 @@ Both must return the same strictly validated action schema. No extension code sh
 - [x] Add the OpenAI multimodal adapter for current development. (PR #22: direct Responses API, low-detail protected image, strict output, `store: false`.)
 - [x] Include a server prompt explaining redaction placeholders and blacked-out regions. (PR #62 instructs both multimodal adapters that protected content is deliberately unavailable and must not be inferred/reconstructed/requested; it must use surviving local targets or request user input.)
 - [x] Return only schema-valid actions using supplied local `targetId`s. (PR #64 verifies the server rejects unknown, hidden/disabled, and role-incompatible provider targets before the extension's independent local validation.)
-- [ ] Add the open-weight Qwen2.5-VL-compatible adapter.
+- [x] Add the open-weight Qwen2.5-VL-compatible adapter. (PR #66 adds a server-only OpenAI-chat-compatible Qwen adapter with explicit endpoint/key configuration, strict schema, protected-image payload, and mocked request tests. A real endpoint remains a deployment choice.)
 
 **Done when:** the chat shows an exact redacted screenshot, GPT returns a safe action based on it, and the extension validates that action locally.
 
@@ -294,9 +294,10 @@ The internal 41-repository comparison informed this plan. The projects to beat a
 - Merged [PR #60](https://github.com/heddle-wins/nudge/pull/60): extended fixture metrics with mask-level precision, false-positive masks, strict region recall, and false-negative regions while preserving separate pixel coverage/over-redaction measures.
 - Merged [PR #62](https://github.com/heddle-wins/nudge/pull/62): made the FastRouter and OpenAI prompts explicitly redaction-aware, with provider-payload regression tests.
 - Merged [PR #64](https://github.com/heddle-wins/nudge/pull/64): completed direct API tests for unknown, hidden/disabled, and role-incompatible provider target IDs.
-- Verification for this checkpoint: API tests (12), TypeScript checks, privacy-core tests (11), extension tests (35), and the extension production build all passed locally.
+- Merged [PR #66](https://github.com/heddle-wins/nudge/pull/66): added the explicitly configured server-only Qwen2.5-VL-compatible multimodal adapter; it is mocked and tested locally without a live endpoint or browser-held key.
+- Verification for this checkpoint: API tests (14), TypeScript checks, privacy-core tests (11), extension tests (35), and the extension production build all passed locally.
 
-**Progress:** Phase 1 is materially started (2 of 5 checklist items checked); Phase 2 has 6 of 7 items complete (local runtime, offscreen YuNet face redaction, offscreen PP-OCR, local OCR PII rules, fusion, and exact-image residue verification). Screen-state classification remains. Phase 3 is nearly complete (5 of 6 checked); only the Qwen2.5-VL-compatible adapter remains. Phase 4 is complete (6 of 6), with a documented Chrome/Chromium-only browser boundary—not Firefox support. Phase 5 has 2 of 6 checklist items complete: fixtures/labels are frozen, byte evidence is reproducible, and metrics can now score precision/recall/false positives/false negatives; extension-context inference, OCR residual, resource, and latency reports still do not exist. Before changing the current image/canvas/iframe block rule, the next priority is an extension-context fixture run that captures the local model masks and timings.
+**Progress:** Phase 1 is materially started (2 of 5 checklist items checked); Phase 2 has 6 of 7 items complete (local runtime, offscreen YuNet face redaction, offscreen PP-OCR, local OCR PII rules, fusion, and exact-image residue verification). Screen-state classification remains. Phase 3 is complete (6 of 6), with direct OpenAI and configured Qwen-compatible paths that remain server-only. Phase 4 is complete (6 of 6), with a documented Chrome/Chromium-only browser boundary—not Firefox support. Phase 5 has 2 of 6 checklist items complete: fixtures/labels are frozen, byte evidence is reproducible, and metrics can now score precision/recall/false positives/false negatives; extension-context inference, OCR residual, resource, and latency reports still do not exist. Before changing the current image/canvas/iframe block rule, the next priority is an extension-context fixture run that captures the local model masks and timings.
 
 Continue Phase 1 and Phase 2 together:
 

@@ -1,6 +1,9 @@
 import os
+import asyncio
 import base64
 import hashlib
+
+import httpx
 
 # Tests must never use a developer's real local provider configuration or key.
 os.environ["NUDGE_PROVIDER"] = "mock"
@@ -82,6 +85,42 @@ def test_server_rejects_a_tampered_screenshot_receipt():
     with TestClient(app) as client:
         response = client.post("/v1/next-action", json=payload)
     assert response.status_code == 422
+
+
+def test_multimodal_provider_sends_only_the_verified_receipt_as_an_image_part(monkeypatch):
+    from app.config import Settings
+    from app.providers import FastRouterProvider
+    from app.schemas import NextActionRequest
+
+    payload = fixture_payload()
+    image = b"redacted-png-fixture"
+    data_url = "data:image/png;base64," + base64.b64encode(image).decode()
+    payload["screenshot"] = {
+        "kind": "nudge-redacted-screenshot", "mimeType": "image/png", "dataUrl": data_url,
+        "sha256": hashlib.sha256(image).hexdigest(), "width": 100, "height": 50,
+    }
+    captured: dict = {}
+
+    class FakeClient:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_args):
+            return False
+
+        async def post(self, _path, json, headers):
+            captured["json"] = json
+            captured["headers"] = headers
+            return httpx.Response(200, json={"choices": [{"message": {"content": '{"action":{"type":"click","targetId":"el_track"},"rationale":"Use the visible control.","confidence":0.8,"requiresConfirmation":true}'}}]})
+
+    monkeypatch.setattr("app.providers.httpx.AsyncClient", lambda **_kwargs: FakeClient())
+    provider = FastRouterProvider(Settings(provider="fastrouter", fastrouter_api_key="test-key"))
+    result = asyncio.run(provider.next_action(NextActionRequest.model_validate(payload)))
+
+    content = captured["json"]["messages"][1]["content"]
+    assert result.action.targetId == "el_track"
+    assert content[1] == {"type": "image_url", "image_url": {"url": data_url}}
+    assert "screenshot" not in content[0]["text"]
 
 
 def test_server_rejects_obvious_unredacted_email_without_echoing_it():

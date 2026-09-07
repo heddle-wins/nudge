@@ -194,7 +194,7 @@ Both must return the same strictly validated action schema. No extension code sh
 - [x] Change the API to accept sanitized structured context plus optional redacted PNG. (PR #12)
 - [x] Use a bounded, typed image payload; reject invalid/tampered receipts. (PR #12; PNG data URL capped at 12 MB.)
 - [x] Add the OpenAI multimodal adapter for current development. (PR #22: direct Responses API, low-detail protected image, strict output, `store: false`.)
-- [ ] Include a server prompt explaining redaction placeholders and blacked-out regions.
+- [x] Include a server prompt explaining redaction placeholders and blacked-out regions. (PR #62 instructs both multimodal adapters that protected content is deliberately unavailable and must not be inferred/reconstructed/requested; it must use surviving local targets or request user input.)
 - [ ] Return only schema-valid actions using supplied local `targetId`s.
 - [ ] Add the open-weight Qwen2.5-VL-compatible adapter.
 
@@ -292,9 +292,10 @@ The internal 41-repository comparison informed this plan. The projects to beat a
 - Merged [PR #56](https://github.com/heddle-wins/nudge/pull/56): declared the Chrome/Chromium support boundary rather than claiming Firefox compatibility; it lists the actual verified evidence and future Firefox porting gates.
 - Merged [PR #58](https://github.com/heddle-wins/nudge/pull/58): added `npm run measure:extension-bundle`, which records exact built-extension/model/ONNX-WASM byte totals and SHA-256s in ignored local evidence.
 - Merged [PR #60](https://github.com/heddle-wins/nudge/pull/60): extended fixture metrics with mask-level precision, false-positive masks, strict region recall, and false-negative regions while preserving separate pixel coverage/over-redaction measures.
+- Merged [PR #62](https://github.com/heddle-wins/nudge/pull/62): made the FastRouter and OpenAI prompts explicitly redaction-aware, with provider-payload regression tests.
 - Verification for this checkpoint: API tests (10), TypeScript checks, privacy-core tests (11), extension tests (35), and the extension production build all passed locally.
 
-**Progress:** Phase 1 is materially started (2 of 5 checklist items checked); Phase 2 has 6 of 7 items complete (local runtime, offscreen YuNet face redaction, offscreen PP-OCR, local OCR PII rules, fusion, and exact-image residue verification). Screen-state classification remains. Phase 3 is underway (3 of 6 checked). Phase 4 is complete (6 of 6), with a documented Chrome/Chromium-only browser boundary—not Firefox support. Phase 5 has 2 of 6 checklist items complete: fixtures/labels are frozen, byte evidence is reproducible, and metrics can now score precision/recall/false positives/false negatives; extension-context inference, OCR residual, resource, and latency reports still do not exist. Before changing the current image/canvas/iframe block rule, the next priority is an extension-context fixture run that captures the local model masks and timings.
+**Progress:** Phase 1 is materially started (2 of 5 checklist items checked); Phase 2 has 6 of 7 items complete (local runtime, offscreen YuNet face redaction, offscreen PP-OCR, local OCR PII rules, fusion, and exact-image residue verification). Screen-state classification remains. Phase 3 is underway (4 of 6 checked): target-ID server validation and a Qwen-compatible adapter remain. Phase 4 is complete (6 of 6), with a documented Chrome/Chromium-only browser boundary—not Firefox support. Phase 5 has 2 of 6 checklist items complete: fixtures/labels are frozen, byte evidence is reproducible, and metrics can now score precision/recall/false positives/false negatives; extension-context inference, OCR residual, resource, and latency reports still do not exist. Before changing the current image/canvas/iframe block rule, the next priority is an extension-context fixture run that captures the local model masks and timings.
 
 Continue Phase 1 and Phase 2 together:
 

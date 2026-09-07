@@ -1,4 +1,6 @@
 import os
+import base64
+import hashlib
 
 # Tests must never use a developer's real local provider configuration or key.
 os.environ["NUDGE_PROVIDER"] = "mock"
@@ -12,6 +14,7 @@ from app.schemas import action_json_schema
 def fixture_payload() -> dict:
     return {
         "task": "Find my application status",
+        "redactionManifest": {"count": 1, "types": ["government_id"], "visualMaskCount": 1, "renderer": "local-canvas-dom-v1"},
         "context": {
             "schemaVersion": "1.0",
             "source": "nudge-extension",
@@ -51,6 +54,34 @@ def test_fixture_context_yields_a_valid_confirmed_action():
     assert body["action"] == {"type": "click", "targetId": "el_track"}
     assert body["requiresConfirmation"] is True
     assert "GOVERNMENT_ID" not in response.text
+
+
+def test_server_accepts_a_verified_redacted_screenshot_receipt():
+    payload = fixture_payload()
+    image = b"redacted-png-fixture"
+    payload["screenshot"] = {
+        "kind": "nudge-redacted-screenshot",
+        "mimeType": "image/png",
+        "dataUrl": "data:image/png;base64," + base64.b64encode(image).decode(),
+        "sha256": hashlib.sha256(image).hexdigest(),
+        "width": 100,
+        "height": 50,
+    }
+    with TestClient(app) as client:
+        response = client.post("/v1/next-action", json=payload)
+    assert response.status_code == 200
+
+
+def test_server_rejects_a_tampered_screenshot_receipt():
+    payload = fixture_payload()
+    payload["screenshot"] = {
+        "kind": "nudge-redacted-screenshot", "mimeType": "image/png",
+        "dataUrl": "data:image/png;base64,cmVkYWN0ZWQ=", "sha256": "0" * 64,
+        "width": 100, "height": 50,
+    }
+    with TestClient(app) as client:
+        response = client.post("/v1/next-action", json=payload)
+    assert response.status_code == 422
 
 
 def test_server_rejects_obvious_unredacted_email_without_echoing_it():

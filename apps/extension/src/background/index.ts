@@ -8,6 +8,7 @@ import {
   type ExecutionResult,
   type NextActionRequest,
   type NextActionResponse,
+  type SafeScreenshot,
   type SanitizedPageContext
 } from "@nudge/contracts";
 import { collectRawPageContext, markElementPrivate } from "../content/collect";
@@ -70,7 +71,20 @@ async function createRedactedViewport(tabId: number) {
     args: [rawCapture, inspection.visualRedactions, viewport ?? { width: target.width ?? 1, height: target.height ?? 1 }]
   });
   if (typeof rendered?.result !== "string") throw new Error("Nudge could not render the protected viewport.");
-  return rendered.result;
+  const image = rendered.result;
+  const base64 = image.split(",", 2)[1];
+  if (!base64) throw new Error("Nudge could not verify the protected viewport.");
+  const bytes = Uint8Array.from(atob(base64), (character) => character.charCodeAt(0));
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  const sha256 = [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+  return {
+    kind: "nudge-redacted-screenshot",
+    mimeType: "image/png",
+    dataUrl: image,
+    sha256,
+    width: Math.round(viewport?.width ?? target.width ?? 1),
+    height: Math.round(viewport?.height ?? target.height ?? 1)
+  } satisfies SafeScreenshot;
 }
 
 async function markPrivate(tabId: number, elementId: string) {
@@ -93,7 +107,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   inspectTab(message.tabId).then(async (response) => {
     if (!response.ok || !message.includeViewport) return response;
     try {
-      return { ...response, viewport: await createRedactedViewport(message.tabId) };
+      return { ...response, screenshot: await createRedactedViewport(message.tabId) };
     } catch (error) {
       return {
         ...response,

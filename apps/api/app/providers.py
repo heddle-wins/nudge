@@ -49,11 +49,17 @@ class FastRouterProvider(ReasoningProvider):
         self._settings = settings
 
     async def next_action(self, request: NextActionRequest) -> ModelActionResponse:
+        safe_context = request.model_dump(mode="json", exclude={"screenshot"})
+        user_content: list[dict[str, object]] = [
+            {"type": "text", "text": json.dumps(safe_context, separators=(",", ":"))}
+        ]
+        if request.screenshot:
+            user_content.append({"type": "image_url", "image_url": {"url": request.screenshot.dataUrl}})
         payload = {
             "model": self._settings.model,
             "messages": [
                 {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": json.dumps(request.model_dump(mode="json"), separators=(",", ":"))},
+                {"role": "user", "content": user_content},
             ],
             "temperature": 0,
             "response_format": {

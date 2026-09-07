@@ -59,6 +59,25 @@ export const sanitizedPageContextSchema = z.object({
 
 export type SanitizedPageContext = z.infer<typeof sanitizedPageContextSchema>;
 
+/** A locally redacted image. Raw browser captures never satisfy this contract. */
+export const safeScreenshotSchema = z.object({
+  kind: z.literal("nudge-redacted-screenshot"),
+  mimeType: z.literal("image/png"),
+  dataUrl: z.string().regex(/^data:image\/png;base64,[A-Za-z0-9+/=]+$/).max(12_000_000),
+  sha256: z.string().regex(/^[a-f0-9]{64}$/),
+  width: z.number().int().positive().max(10_000),
+  height: z.number().int().positive().max(10_000)
+}).strict();
+export type SafeScreenshot = z.infer<typeof safeScreenshotSchema>;
+
+export const redactionManifestSchema = z.object({
+  count: z.number().int().nonnegative(),
+  types: z.array(piiKindSchema),
+  visualMaskCount: z.number().int().nonnegative(),
+  renderer: z.literal("local-canvas-dom-v1")
+}).strict();
+export type RedactionManifest = z.infer<typeof redactionManifestSchema>;
+
 export const actionTypeSchema = z.enum([
   "click",
   "scroll",
@@ -83,10 +102,13 @@ export type ProposedAction = z.infer<typeof proposedActionSchema>;
 
 export const nextActionRequestSchema = z.object({
   task: z.string().trim().min(1).max(1_000),
-  context: sanitizedPageContextSchema
+  context: sanitizedPageContextSchema,
+  redactionManifest: redactionManifestSchema,
+  screenshot: safeScreenshotSchema.optional()
 }).strict();
 
 export type NextActionRequest = z.infer<typeof nextActionRequestSchema>;
+export type VisionReasoningRequest = NextActionRequest;
 
 export const nextActionResponseSchema = z.object({
   schemaVersion: z.literal("1.0"),

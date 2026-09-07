@@ -1,11 +1,11 @@
 import { StrictMode, useCallback, useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
-import type { ExecutionResult, NextActionResponse, SanitizedPageContext } from "@nudge/contracts";
+import type { ExecutionResult, NextActionResponse, SafeScreenshot, SanitizedPageContext } from "@nudge/contracts";
 import type { RedactionDetail } from "@nudge/privacy-core";
 import "./styles.css";
 
 type PageIdentity = { tabId: number; title: string; origin: string; hostname: string; faviconUrl: string };
-type ReadyView = { status: "ready"; context: SanitizedPageContext; redactionDetails: RedactionDetail[]; visualRedactionCount: number; viewport?: string; viewportError?: string; page: PageIdentity };
+type ReadyView = { status: "ready"; context: SanitizedPageContext; redactionDetails: RedactionDetail[]; visualRedactionCount: number; screenshot?: SafeScreenshot; viewportError?: string; page: PageIdentity };
 type UnsupportedView = { status: "error"; label: string };
 type ViewState = { status: "idle" | "loading" } | UnsupportedView | ReadyView;
 type ConversationItem =
@@ -46,7 +46,7 @@ function App() {
         status: "ready", context, page,
         redactionDetails: Array.isArray(response.redactionDetails) ? response.redactionDetails as RedactionDetail[] : [],
         visualRedactionCount: typeof response.visualRedactionCount === "number" ? response.visualRedactionCount : 0,
-        viewport: typeof response.viewport === "string" ? response.viewport : undefined,
+        screenshot: response.screenshot as SafeScreenshot | undefined,
         viewportError: typeof response.viewportError === "string" ? response.viewportError : undefined
       });
       setOpenPrivacyPanel(null);
@@ -88,10 +88,10 @@ function App() {
     const task = draft.trim();
     const loadingId = crypto.randomUUID();
     setDraft("");
-    setConversation((items) => [...items, { id: crypto.randomUUID(), role: "user", kind: "text", text: task }, { id: loadingId, role: "assistant", kind: "loading", text: "Reviewing the outbound-safe page context…" }]);
+    setConversation((items) => [...items, { id: crypto.randomUUID(), role: "user", kind: "text", text: task }, { id: loadingId, role: "assistant", kind: "loading", text: "Reviewing the protected page context…" }]);
     try {
       await chrome.storage.local.set({ nudgeReasoningServerUrl: serverUrl.trim() });
-      const response = await chrome.runtime.sendMessage({ type: "NUDGE_REQUEST_NEXT_ACTION", serverUrl: serverUrl.trim(), payload: { task, context: state.context } });
+      const response = await chrome.runtime.sendMessage({ type: "NUDGE_REQUEST_NEXT_ACTION", serverUrl: serverUrl.trim(), payload: { task, context: state.context, redactionManifest: { count: state.context.page.redactions.count, types: state.context.page.redactions.types, visualMaskCount: state.visualRedactionCount, renderer: "local-canvas-dom-v1" }, ...(state.screenshot ? { screenshot: state.screenshot } : {}) } });
       if (!response?.ok) throw new Error(response?.error ?? "Nudge could not get a safe action proposal.");
       const proposal = response.proposal as NextActionResponse;
       setConversation((items) => items.map((item) => item.id === loadingId ? { id: loadingId, role: "assistant", kind: "proposal", proposal } : item));
@@ -159,7 +159,7 @@ function PrivacySummary({ view, openPanel, onOpenPanelChange, onMarkPrivate }: {
 }
 
 function PageContext({ view, serverUrl, onServerUrlChange, onMarkPrivate, audit }: { view: ReadyView; serverUrl: string; onServerUrlChange: (value: string) => void; onMarkPrivate: (id: string) => Promise<void>; audit: AuditEntry[] }) {
-  const { context, page, redactionDetails, visualRedactionCount, viewport, viewportError } = view;
+  const { context, page, redactionDetails, visualRedactionCount, screenshot, viewportError } = view;
   return <section className="page-context">
     <div className="page-heading"><span className="site-mark">{page.faviconUrl ? <img src={page.faviconUrl} alt="" /> : <span aria-hidden="true">{page.hostname.slice(0, 1).toUpperCase()}</span>}</span><div><strong>{page.title}</strong><span>{page.hostname}</span></div><span className="context-dot" title="Active page context is local" /></div>
     <div className="context-meta"><span>{context.page.redactions.count} outbound redactions</span><span>{visualRedactionCount} visual masks</span></div>
@@ -167,7 +167,7 @@ function PageContext({ view, serverUrl, onServerUrlChange, onMarkPrivate, audit 
       <p className="drawer-note">Raw page content, cookies, screenshots, and original protected values stay in your browser.</p>
       {redactionDetails.length > 0 && <ul className="redaction-list">{redactionDetails.map((detail, index) => <li key={`${detail.kind}-${detail.location}-${index}`}><strong>{piiLabel(detail.kind)}</strong><span>{detail.location}</span></li>)}</ul>}
       <div className="element-list">{context.page.elements.filter((element) => element.role === "textbox" || element.role === "combobox").slice(0, 20).map((element) => <button type="button" key={element.id} onClick={() => void onMarkPrivate(element.id)}>Mark “{element.name}” private</button>)}</div>
-      {viewport && <img className="viewport" src={viewport} alt="Locally redacted page viewport" />}{viewportError && <p className="drawer-error">{viewportError}</p>}
+      {screenshot && <><img className="viewport" src={screenshot.dataUrl} alt="Exact locally redacted page view that will be sent to the reasoning server" /><p className="drawer-note">Only this protected view will be sent · receipt {screenshot.sha256.slice(0, 12)}…</p></>}{viewportError && <p className="drawer-error">{viewportError}</p>}
       <details className="nested-details"><summary>View sanitized context</summary><pre>{JSON.stringify(context, null, 2)}</pre></details>
       <details className="nested-details"><summary>Connection</summary><label>Reasoning server URL<input value={serverUrl} inputMode="url" onChange={(event) => onServerUrlChange(event.target.value)} /></label></details>
       <details className="nested-details"><summary>Local audit ({audit.length})</summary><ul className="audit-list">{audit.slice(0, 8).map((entry) => <li key={entry.id}><strong>{entry.action.replaceAll("_", " ")}</strong><span>{entry.status === "completed" ? "Completed" : "Paused"} · {entry.outcome.replaceAll("_", " ")}</span></li>)}</ul></details>

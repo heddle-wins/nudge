@@ -126,8 +126,12 @@ function App() {
       <div className="composer-input">
         <textarea aria-label="Describe what you want to do" value={draft} maxLength={1_000} rows={1} disabled={!isReady} placeholder={isReady ? "Ask Nudge about this page" : "Waiting for a supported page"} onChange={(event) => setDraft(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); event.currentTarget.form?.requestSubmit(); } }} />
         <button className="send" type="submit" disabled={!isReady || !draft.trim()} aria-label="Send task">
-          {/* Iconoir NavArrowUp — https://iconoir.com/icon/nav-arrow-up */}
-          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 15 12 9 18 15" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" /></svg>
+          <span className="send-arrow" aria-hidden="true">
+            {/* Iconoir NavArrowUp */}
+            <svg className="send-arrow-tip" viewBox="0 0 24 24" fill="none"><path d="M6 15 12 9 18 15" /></svg>
+            {/* Iconoir ArrowUp */}
+            <svg className="send-arrow-full" viewBox="0 0 24 24" fill="none"><path d="M12 21V3m0 0 8.5 8.5M12 3l-8.5 8.5" /></svg>
+          </span>
         </button>
       </div>
     </form>

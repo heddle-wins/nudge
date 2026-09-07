@@ -20,13 +20,25 @@ Then open `http://127.0.0.1:8000/docs` or send a sanitized `POST` request to `/v
 pytest
 ```
 
+## Deploy with OpenAI Responses API
+
+On the server, use a direct OpenAI provider with a server-only key:
+
+```env
+NUDGE_PROVIDER=openai
+NUDGE_MODEL=gpt-5-mini
+OPENAI_API_KEY=your-server-only-key
+```
+
+The protected PNG is sent as an `input_image` part. The API requests a strict JSON schema and does not store the response.
+
 ## Deploy with FastRouter
 
 On the VPS, change only these values in `apps/api/.env`:
 
 ```env
 NUDGE_PROVIDER=fastrouter
-NUDGE_MODEL=openai/gpt-5-mini
+NUDGE_MODEL=gpt-5-mini
 FASTROUTER_API_KEY=your-server-only-key
 ```
 

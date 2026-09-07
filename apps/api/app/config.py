@@ -10,7 +10,9 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
     provider: str = Field(default="mock", validation_alias="NUDGE_PROVIDER")
-    model: str = Field(default="openai/gpt-5-mini", validation_alias="NUDGE_MODEL")
+    model: str = Field(default="gpt-5-mini", validation_alias="NUDGE_MODEL")
+    openai_api_key: str | None = Field(default=None, validation_alias="OPENAI_API_KEY")
+    openai_base_url: str = Field(default="https://api.openai.com/v1", validation_alias="OPENAI_BASE_URL")
     fastrouter_base_url: str = Field(
         default="https://api.fastrouter.ai/api/v1", validation_alias="FASTROUTER_BASE_URL"
     )
@@ -19,10 +21,12 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def validate_provider(self) -> "Settings":
-        if self.provider not in {"mock", "fastrouter"}:
-            raise ValueError("NUDGE_PROVIDER must be 'mock' or 'fastrouter'.")
+        if self.provider not in {"mock", "fastrouter", "openai"}:
+            raise ValueError("NUDGE_PROVIDER must be 'mock', 'fastrouter', or 'openai'.")
         if self.provider == "fastrouter" and not self.fastrouter_api_key:
             raise ValueError("FASTROUTER_API_KEY is required when NUDGE_PROVIDER=fastrouter.")
+        if self.provider == "openai" and not self.openai_api_key:
+            raise ValueError("OPENAI_API_KEY is required when NUDGE_PROVIDER=openai.")
         return self
 
     @property

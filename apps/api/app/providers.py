@@ -79,7 +79,47 @@ class FastRouterProvider(ReasoningProvider):
             raise ProviderError("FastRouter returned an invalid action response.") from error
 
 
+class OpenAIResponsesProvider(ReasoningProvider):
+    """Direct Responses API adapter; the browser never sees this server-only key."""
+
+    def __init__(self, settings: Settings):
+        self._settings = settings
+
+    async def next_action(self, request: NextActionRequest) -> ModelActionResponse:
+        safe_context = request.model_dump(mode="json", exclude={"screenshot"})
+        content: list[dict[str, object]] = [
+            {"type": "input_text", "text": json.dumps(safe_context, separators=(",", ":"))}
+        ]
+        if request.screenshot:
+            content.append({"type": "input_image", "image_url": request.screenshot.dataUrl, "detail": "low"})
+        payload = {
+            "model": self._settings.model,
+            "instructions": SYSTEM_PROMPT,
+            "input": [{"role": "user", "content": content}],
+            "text": {"format": {"type": "json_schema", "name": "nudge_next_action", "strict": True, "schema": action_json_schema()}},
+            "store": False,
+        }
+        headers = {"Authorization": f"Bearer {self._settings.openai_api_key}", "Content-Type": "application/json"}
+        async with httpx.AsyncClient(base_url=self._settings.openai_base_url, timeout=20.0) as client:
+            response = await client.post("/responses", json=payload, headers=headers)
+            if response.is_error:
+                raise ProviderError(f"OpenAI rejected the reasoning request ({response.status_code}).")
+        try:
+            body = response.json()
+            content = next(
+                item["text"] for item in body["output"]
+                if item.get("type") == "message"
+                for item in item.get("content", [])
+                if item.get("type") == "output_text"
+            )
+            return ModelActionResponse.model_validate_json(content)
+        except (KeyError, TypeError, StopIteration, ValidationError, json.JSONDecodeError) as error:
+            raise ProviderError("OpenAI returned an invalid action response.") from error
+
+
 def create_provider(settings: Settings) -> ReasoningProvider:
     if settings.provider == "fastrouter":
         return FastRouterProvider(settings)
+    if settings.provider == "openai":
+        return OpenAIResponsesProvider(settings)
     return MockReasoningProvider()

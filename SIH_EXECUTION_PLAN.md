@@ -268,6 +268,8 @@ The internal 41-repository comparison informed this plan. The projects to beat a
 
 ### Delivered checkpoint — 8 September 2026
 
+Capture validation correction: the fixture runner now sets the viewport to the labelled asset size, waits for document completion and fonts, and checks PNG dimensions before inference. A fresh six-fixture run produced five masks, compared with two in the earlier run. Earlier accuracy numbers derived from captures without these checks must be treated as provisional. New ignored artifacts also record browser version, CPU, memory capacity, and the browser GPU device; memory capacity is not measured inference memory consumption. Accuracy and residue evaluation must be repeated with validated captures.
+
 - Merged [PR #12](https://github.com/heddle-wins/nudge/pull/12): protected screenshot contract, redaction manifest, exact-image UI receipt, server integrity check, and multimodal image request shape.
 - Merged [PR #13](https://github.com/heddle-wins/nudge/pull/13): one `createSafeScreenshot()` egress constructor plus a non-PNG rejection canary. It is not yet proof against an arbitrary raw PNG; that remains a Phase 1 task.
 - Merged [PR #15](https://github.com/heddle-wins/nudge/pull/15): ONNX Runtime Web 1.20.1 and tested WebGPU-to-WASM local-session fallback. The production build currently packages an approximately 11 MB WASM runtime before model assets, so model choice and lazy loading remain resource gates.

@@ -10,8 +10,8 @@ const backgroundSource = readFileSync(
 describe("captured-pixel egress canary", () => {
   it("routes a browser capture through the local canvas renderer before a receipt is created", () => {
     expect(backgroundSource).toMatch(/const rawCapture = await chrome\.tabs\.captureVisibleTab/);
-    expect(backgroundSource).toMatch(/await detectFacesOffscreen\(rawCapture\)/);
-    expect(backgroundSource).toMatch(/args: \[rawCapture, \[\.\.\.inspection\.visualRedactions, \.\.\.faceRegions\]/);
+    expect(backgroundSource).toMatch(/await detectVisualPrivacyOffscreen\(rawCapture\)/);
+    expect(backgroundSource).toMatch(/args: \[rawCapture, \[\.\.\.inspection\.visualRedactions, \.\.\.visualRegions\]/);
     expect(backgroundSource).toMatch(/screenshot: await createSafeScreenshot\(rendered\.result/);
   });
 

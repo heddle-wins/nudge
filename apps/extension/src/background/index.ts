@@ -17,7 +17,7 @@ import { renderRedactedViewport } from "../content/viewport";
 import { evaluateExecutionPolicy } from "../execution-policy";
 import { createSafeScreenshot } from "../safe-screenshot";
 import { browserSupportsWebGpu } from "../vision/runtime";
-import { detectFacesOffscreen } from "../vision/offscreen-client";
+import { detectVisualPrivacyOffscreen } from "../vision/offscreen-client";
 
 chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch(console.error);
 
@@ -68,11 +68,11 @@ async function createRedactedViewport(tabId: number) {
   }
   const target = (await chrome.tabs.get(tabId));
   const rawCapture = await chrome.tabs.captureVisibleTab(target.windowId, { format: "png" });
-  const faceRegions = (await detectFacesOffscreen(rawCapture)).map((face) => ({ ...face, kind: "face" as const, coordinateSpace: "image" as const }));
+  const visualRegions = (await detectVisualPrivacyOffscreen(rawCapture)).map((region) => ({ ...region, coordinateSpace: "image" as const }));
   const [rendered] = await chrome.scripting.executeScript({
     target: { tabId },
     func: renderRedactedViewport,
-    args: [rawCapture, [...inspection.visualRedactions, ...faceRegions], viewport ?? { width: target.width ?? 1, height: target.height ?? 1 }]
+    args: [rawCapture, [...inspection.visualRedactions, ...visualRegions], viewport ?? { width: target.width ?? 1, height: target.height ?? 1 }]
   });
   if (typeof rendered?.result !== "string") throw new Error("Nudge could not render the protected viewport.");
   return {
@@ -80,7 +80,7 @@ async function createRedactedViewport(tabId: number) {
       width: viewport?.width ?? target.width ?? 1,
       height: viewport?.height ?? target.height ?? 1
     }),
-    faceCount: faceRegions.length
+    visualRegions
   };
 }
 
@@ -108,8 +108,8 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       return {
         ...response,
         screenshot: protectedViewport.screenshot,
-        visualRedactionCount: (typeof response.visualRedactionCount === "number" ? response.visualRedactionCount : 0) + protectedViewport.faceCount,
-        visualRedactionTypes: protectedViewport.faceCount > 0 ? ["face" satisfies PiiKind] : []
+        visualRedactionCount: (typeof response.visualRedactionCount === "number" ? response.visualRedactionCount : 0) + protectedViewport.visualRegions.length,
+        visualRedactionTypes: [...new Set(protectedViewport.visualRegions.map((region) => region.kind))] satisfies PiiKind[]
       };
     } catch (error) {
       return {

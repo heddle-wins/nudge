@@ -1,4 +1,6 @@
-import type { FaceRegion } from "./yunet";
+import type { PiiKind } from "@nudge/contracts";
+
+export type VisualPrivacyRegion = { x: number; y: number; width: number; height: number; score: number; kind: PiiKind };
 
 const OFFSCREEN_PATH = "src/offscreen/index.html";
 let creatingDocument: Promise<void> | undefined;
@@ -13,18 +15,18 @@ async function ensureVisionDocument() {
   creatingDocument ??= chrome.offscreen.createDocument({
     url: OFFSCREEN_PATH,
     reasons: [chrome.offscreen.Reason.WORKERS],
-    justification: "Run local screenshot face detection without blocking the extension service worker."
+    justification: "Run local screenshot face and text privacy detection without blocking the extension service worker."
   }).finally(() => { creatingDocument = undefined; });
   await creatingDocument;
 }
 
 /** Sends raw pixels only to Nudge's own local offscreen document. */
-export async function detectFacesOffscreen(screenshot: string): Promise<FaceRegion[]> {
+export async function detectVisualPrivacyOffscreen(screenshot: string): Promise<VisualPrivacyRegion[]> {
   await ensureVisionDocument();
   const requestId = crypto.randomUUID();
-  const response = await chrome.runtime.sendMessage({ type: "NUDGE_OFFSCREEN_DETECT_FACES", requestId, screenshot });
-  if (!response?.ok || response.requestId !== requestId || !Array.isArray(response.faces)) {
-    throw new Error("Nudge could not complete local face detection.");
+  const response = await chrome.runtime.sendMessage({ type: "NUDGE_OFFSCREEN_DETECT_VISUAL_PII", requestId, screenshot });
+  if (!response?.ok || response.requestId !== requestId || !Array.isArray(response.regions)) {
+    throw new Error("Nudge could not complete local visual privacy detection.");
   }
-  return response.faces as FaceRegion[];
+  return response.regions as VisualPrivacyRegion[];
 }

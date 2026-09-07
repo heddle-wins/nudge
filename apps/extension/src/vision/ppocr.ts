@@ -115,3 +115,36 @@ export async function loadPpOcrVocabulary() {
   const text = await (await fetch(chrome.runtime.getURL(PPOCR_VOCABULARY_PATH))).text();
   return text.split(/\r?\n/).filter(Boolean);
 }
+
+/** Run both local PP-OCR models; recognized strings never leave the offscreen document. */
+export async function detectOcrText(
+  screenshotDataUrl: string,
+  detector: ort.InferenceSession,
+  recognizer: ort.InferenceSession,
+  vocabulary: string[]
+): Promise<Array<TextRegion & RecognizedText>> {
+  const response = await fetch(screenshotDataUrl);
+  const bitmap = await createImageBitmap(await response.blob());
+  const screenshot = { width: bitmap.width, height: bitmap.height };
+  const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
+  const context = canvas.getContext("2d", { willReadFrequently: true });
+  if (!context) throw new Error("Nudge could not create a local OCR canvas.");
+  context.drawImage(bitmap, 0, 0);
+  bitmap.close();
+  const image = context.getImageData(0, 0, screenshot.width, screenshot.height);
+  const detectorInput = preprocessPpOcrDetector(image);
+  const detectorOutput = await detector.run({ [detector.inputNames[0]]: detectorInput });
+  const scoreMap = detectorOutput[detector.outputNames[0]];
+  if (!scoreMap) throw new Error("PP-OCR detector returned no score map.");
+  const regions = decodePpOcrRegions(scoreMap, screenshot);
+  const recognized: Array<TextRegion & RecognizedText> = [];
+  for (const region of regions.slice(0, 150)) {
+    const recognitionInput = preprocessPpOcrRecognizer(image, region);
+    const recognitionOutput = await recognizer.run({ [recognizer.inputNames[0]]: recognitionInput });
+    const logits = recognitionOutput[recognizer.outputNames[0]];
+    if (!logits) throw new Error("PP-OCR recognizer returned no logits.");
+    const result = decodePpOcrText(logits, vocabulary);
+    if (result.text && result.confidence >= 0.5) recognized.push({ ...region, ...result });
+  }
+  return recognized;
+}

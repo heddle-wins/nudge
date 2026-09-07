@@ -180,7 +180,7 @@ Both must return the same strictly validated action schema. No extension code sh
 - [x] Bundle ONNX Runtime Web and configure WebGPU/WASM fallback. (PR #15; session creation is WebGPU-first, local WASM fallback, single-threaded.)
 - [x] Integrate YuNet face detection in an offscreen worker. (PR #28 uses Chrome's MV3 offscreen-document host: it owns the local YuNet session and returns face boxes to the protected screenshot renderer.)
 - [x] Integrate PP-OCR text detection and recognition in an offscreen worker. (PRs #30–#32 bundle detector/recognizer/vocabulary, run both in the offscreen host, and turn locally classified OCR PII into captured-image masks.)
-- [ ] Detect PII in OCR text with existing and expanded Indian PII rules.
+- [x] Detect PII in OCR text with existing and expanded Indian PII rules. (PR #34 adds IFSC, voter ID, and passport patterns alongside existing email, phone, Aadhaar, PAN, payment, account, and token rules.)
 - [ ] Add MobileViT screen-state classification.
 - [ ] Merge DOM, OCR, face, and user-marked boxes into one redaction plan.
 - [ ] Add redaction padding and post-redaction re-OCR verification.
@@ -275,9 +275,10 @@ The internal 41-repository comparison informed this plan. The projects to beat a
 - Merged [PRs #24–#26](https://github.com/heddle-wins/nudge/pull/26): bundled OpenCV Zoo INT8 YuNet (100 KB, SHA-256 inventoried), decoded all twelve output heads locally, and connected face boxes to the protected screenshot canvas. This is detection/redaction only—never facial recognition.
 - Merged [PR #28](https://github.com/heddle-wins/nudge/pull/28): moved YuNet session creation and raw-pixel inference into Chrome's extension-owned offscreen document. The service worker receives only the resulting face boxes.
 - Merged [PRs #30–#32](https://github.com/heddle-wins/nudge/pull/32): bundled PP-OCRv4 ONNX detector/recognizer, decoded local text regions and CTC output, and returned only PII-classified mask boxes from the offscreen document. OCR text itself is not sent to the service worker or reasoning server.
+- Merged [PR #34](https://github.com/heddle-wins/nudge/pull/34): expanded local visual-PII rules for OCR-readable IFSC, voter ID, and passport values with regression tests.
 - Verification for this checkpoint: API tests (8), contracts and extension TypeScript checks, privacy-core tests (9), and extension tests (12) all passed locally.
 
-**Progress:** Phase 1 is materially started (2 of 5 checklist items checked); Phase 2 has 3 of 7 items complete (local runtime, offscreen YuNet face redaction, and offscreen PP-OCR). Indian OCR-specific rules, redaction fusion/residue verification, and screen-state classification remain; Phase 3 is underway (3 of 6 checked). The next priority is expanding OCR PII coverage and adding post-redaction residue checks.
+**Progress:** Phase 1 is materially started (2 of 5 checklist items checked); Phase 2 has 4 of 7 items complete (local runtime, offscreen YuNet face redaction, offscreen PP-OCR, and local OCR PII rules). Fusion/residue verification and screen-state classification remain; Phase 3 is underway (3 of 6 checked). The next priority is post-redaction OCR residue verification.
 
 Continue Phase 1 and Phase 2 together:
 

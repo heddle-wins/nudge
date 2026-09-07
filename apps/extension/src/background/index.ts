@@ -15,6 +15,7 @@ import { executeApprovedAction } from "../content/execute";
 import { renderRedactedViewport } from "../content/viewport";
 import { evaluateExecutionPolicy } from "../execution-policy";
 import { createSafeScreenshot } from "../safe-screenshot";
+import { browserSupportsWebGpu } from "../vision/runtime";
 
 chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch(console.error);
 
@@ -232,6 +233,11 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     (error) => sendResponse({ ok: false, error: error instanceof Error ? error.message : "Nudge could not complete the approved action." })
   );
   return true;
+});
+
+chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  if (message?.type !== "NUDGE_GET_VISION_RUNTIME") return;
+  sendResponse({ ok: true, preferredBackend: browserSupportsWebGpu() ? "webgpu" : "wasm" });
 });
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {

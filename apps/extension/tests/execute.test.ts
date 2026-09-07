@@ -41,6 +41,17 @@ describe("approved browser executor", () => {
     expect(executeApprovedAction(request("click", "button", "Continue"))).toMatchObject({ status: "blocked", outcome: "high_impact_action" });
     document.body.innerHTML = "<a href='https://outside.example'>Open service</a>";
     expect(executeApprovedAction(request("click", "link", "Open service"))).toMatchObject({ status: "blocked", outcome: "external_navigation" });
+    document.body.innerHTML = "<a href='/status' target='_blank'>Open status</a>";
+    expect(executeApprovedAction(request("click", "link", "Open status"))).toMatchObject({ status: "blocked", outcome: "external_navigation" });
+  });
+
+  it("refuses payment, destructive, and OTP-adjacent actions even after confirmation", () => {
+    document.body.innerHTML = "<button>Pay now</button>";
+    expect(executeApprovedAction(request("click", "button", "Pay now"))).toMatchObject({ status: "blocked", outcome: "high_impact_action" });
+    document.body.innerHTML = "<button>Delete application</button>";
+    expect(executeApprovedAction(request("click", "button", "Delete application"))).toMatchObject({ status: "blocked", outcome: "high_impact_action" });
+    document.body.innerHTML = "<input autocomplete='one-time-code'><button>Track application</button>";
+    expect(executeApprovedAction(request("click", "button", "Track application"))).toMatchObject({ status: "blocked", outcome: "mfa_or_captcha" });
   });
 
   it("pauses when a CAPTCHA is present", () => {

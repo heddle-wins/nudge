@@ -91,6 +91,20 @@ async function createRedactedViewport(tabId: number) {
   };
 }
 
+// This receiver is compiled only by the controlled fixture build. It exercises
+// the real service-worker/offscreen path with Chrome's normal message lifetime;
+// production builds expose no fixture message or debug API.
+if (import.meta.env.MODE === "fixture") {
+  chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+    if (message?.type !== "NUDGE_FIXTURE_DETECT_VISUAL_PRIVACY" || typeof message.screenshot !== "string") return;
+    detectVisualPrivacyOffscreen(message.screenshot).then(
+      (scan) => sendResponse({ ok: true, scan }),
+      (error) => sendResponse({ ok: false, error: error instanceof Error ? error.message : "Nudge could not complete local visual privacy detection." })
+    );
+    return true;
+  });
+}
+
 async function markPrivate(tabId: number, elementId: string) {
   try {
     const response = await chrome.tabs.sendMessage(tabId, { type: "NUDGE_MARK_ELEMENT_PRIVATE", elementId });

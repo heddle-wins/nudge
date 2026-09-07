@@ -28,6 +28,7 @@ export async function detectVisualPrivacyOffscreen(screenshot: string): Promise<
   const requestId = crypto.randomUUID();
   const response = await chrome.runtime.sendMessage({ type: "NUDGE_OFFSCREEN_DETECT_VISUAL_PII", requestId, screenshot });
   if (!response?.ok || response.requestId !== requestId || !Array.isArray(response.regions) || !Number.isFinite(response.scanMs) || !Number.isFinite(response.modelLoadMs) || response.modelLoadMs < 0 || !Array.isArray(response.backends) || !response.backends.every((backend: unknown) => backend === "webgpu" || backend === "wasm")) {
+    if (import.meta.env.MODE === "fixture" && typeof response?.error === "string") throw new Error(response.error);
     throw new Error("Nudge could not complete local visual privacy detection.");
   }
   return { regions: response.regions as VisualPrivacyRegion[], scanMs: response.scanMs, modelLoadMs: response.modelLoadMs, backends: response.backends as VisionBackend[] };

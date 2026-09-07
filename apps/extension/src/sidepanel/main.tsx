@@ -5,7 +5,7 @@ import type { RedactionDetail } from "@nudge/privacy-core";
 import "./styles.css";
 
 type PageIdentity = { tabId: number; title: string; origin: string; hostname: string; faviconUrl: string };
-type ReadyView = { status: "ready"; context: SanitizedPageContext; redactionDetails: RedactionDetail[]; visualRedactionCount: number; visualRedactionTypes: PiiKind[]; screenshot?: SafeScreenshot; viewportError?: string; page: PageIdentity };
+type ReadyView = { status: "ready"; context: SanitizedPageContext; redactionDetails: RedactionDetail[]; visualRedactionCount: number; visualRedactionTypes: PiiKind[]; visualScan?: { scanMs: number; residueScanMs: number; backends: Array<"webgpu" | "wasm"> }; screenshot?: SafeScreenshot; viewportError?: string; page: PageIdentity };
 type UnsupportedView = { status: "error"; label: string };
 type ViewState = { status: "idle" | "loading" } | UnsupportedView | ReadyView;
 type ConversationItem =
@@ -47,6 +47,7 @@ function App() {
         redactionDetails: Array.isArray(response.redactionDetails) ? response.redactionDetails as RedactionDetail[] : [],
         visualRedactionCount: typeof response.visualRedactionCount === "number" ? response.visualRedactionCount : 0,
         visualRedactionTypes: Array.isArray(response.visualRedactionTypes) ? response.visualRedactionTypes as PiiKind[] : [],
+        visualScan: validVisualScan(response.visualScan),
         screenshot: response.screenshot as SafeScreenshot | undefined,
         viewportError: typeof response.viewportError === "string" ? response.viewportError : undefined
       });
@@ -141,12 +142,16 @@ function App() {
 
 function PrivacySummary({ view, openPanel, onOpenPanelChange, onMarkPrivate }: { view: ReadyView; openPanel: "redactions" | "controls" | null; onOpenPanelChange: (panel: "redactions" | "controls" | null) => void; onMarkPrivate: (id: string) => Promise<void> }) {
   const privateFields = view.context.page.elements.filter((element) => element.role === "textbox" || element.role === "combobox").slice(0, 20);
-  const redactions = view.context.page.redactions.count;
+  const redactions = view.context.page.redactions.count + view.visualRedactionCount;
   return <section className="privacy-summary" aria-label="Privacy controls">
     <details className="redaction-details" open={openPanel === "redactions"}>
       <summary onClick={(event) => { event.preventDefault(); onOpenPanelChange(openPanel === "redactions" ? null : "redactions"); }}><ShieldCheck /><span>{redactions} {redactions === 1 ? "item" : "items"} redacted</span><NavArrowDown /></summary>
       <div className="redaction-details-panel">
-        {view.redactionDetails.length > 0 ? <ul>{view.redactionDetails.map((detail, index) => <li key={`${detail.kind}-${detail.location}-${index}`}><strong>{piiLabel(detail.kind)}</strong><span>{detail.location}</span></li>)}</ul> : <p>No sensitive values were found on this page.</p>}
+        {view.redactionDetails.length > 0 ? <ul>{view.redactionDetails.map((detail, index) => <li key={`${detail.kind}-${detail.location}-${index}`}><strong>{piiLabel(detail.kind)}</strong><span>{detail.location}</span></li>)}</ul> : <p>No DOM-sensitive values were found on this page.</p>}
+        {view.visualRedactionCount > 0 && <p className="visual-scan-summary">{view.visualRedactionCount} visual mask{view.visualRedactionCount === 1 ? "" : "s"}: {view.visualRedactionTypes.map(piiLabel).join(", ") || "local privacy detection"}.</p>}
+        {view.visualScan && <p className="visual-scan-summary">Scanned locally in {Math.round(view.visualScan.scanMs)} ms via {view.visualScan.backends.join(" + ")}; redacted pixels were checked again in {Math.round(view.visualScan.residueScanMs)} ms.</p>}
+        {view.screenshot && <><img className="protected-preview" src={view.screenshot.dataUrl} alt="Exact locally redacted page view that will be sent to the reasoning server" /><p className="visual-scan-summary">Exact outgoing view · receipt {view.screenshot.sha256.slice(0, 12)}…</p></>}
+        {view.viewportError && <p className="drawer-error">{view.viewportError}</p>}
       </div>
     </details>
     <details className="privacy-controls" open={openPanel === "controls"}>
@@ -189,6 +194,12 @@ function ProposalBubble({ proposal, onExecute }: { proposal: NextActionResponse;
 }
 
 function piiLabel(kind: RedactionDetail["kind"]): string { return ({ face: "Face", password: "Password", email: "Email", phone: "Phone", government_id: "Government ID", payment: "Payment detail", account_number: "Account number", address: "Address", date_of_birth: "Date of birth", token: "Token", user_marked: "Marked private" } as const)[kind]; }
+function validVisualScan(value: unknown): ReadyView["visualScan"] {
+  if (!value || typeof value !== "object") return undefined;
+  const scan = value as { scanMs?: unknown; residueScanMs?: unknown; backends?: unknown };
+  if (!Number.isFinite(scan.scanMs) || !Number.isFinite(scan.residueScanMs) || !Array.isArray(scan.backends) || !scan.backends.every((backend) => backend === "webgpu" || backend === "wasm")) return undefined;
+  return { scanMs: scan.scanMs as number, residueScanMs: scan.residueScanMs as number, backends: scan.backends as Array<"webgpu" | "wasm"> };
+}
 function safeHostname(origin: string) { try { return new URL(origin).hostname; } catch { return origin; } }
 function shortTitle(title: string) { return title.length > 31 ? `${title.slice(0, 30).trimEnd()}…` : title; }
 function ControlSlider() { return <svg className="control-slider-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">{/* Iconoir control-slider — https://iconoir.com/icon/control-slider */}<path d="M6.75469 17.2828 5.32612 7.28284C5.154 6.07798 6.08892 5 7.30602 5H10.694C11.9111 5 12.846 6.07797 12.6739 7.28284L11.2453 17.2828C11.1046 18.2681 10.2607 19 9.26541 19H8.73459C7.73929 19 6.89545 18.2681 6.75469 17.2828Z" stroke="currentColor" strokeWidth="1.5" /><path d="M2 12H6M22 12H12" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" /></svg>; }

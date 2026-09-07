@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="450" viewBox="0 0 800 450">
+  <rect width="800" height="450" fill="#fff7ed"/><rect x="55" y="45" width="690" height="360" rx="18" fill="#ffffff" stroke="#fed7aa"/>
+  <text x="95" y="125" font-family="Noto Sans Devanagari,Arial" font-size="29" fill="#431407">पहचान सत्यापन</text>
+  <text x="95" y="176" font-family="Arial" font-size="18" fill="#7c2d12">Spacing and multilingual-label regression fixture</text>
+  <text x="95" y="250" font-family="monospace" font-size="28" fill="#111827">PAN  A B C D E 1 2 3 4 F</text>
+  <text x="95" y="299" font-family="Arial" font-size="27" fill="#111827">demo.person@example.test</text>
+</svg>

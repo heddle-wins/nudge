@@ -1,0 +1,64 @@
+{
+  "schemaVersion": 1,
+  "coordinateSystem": "asset pixels, origin top-left",
+  "fixtures": [
+    {
+      "id": "dom-credential-form",
+      "asset": "dom-credential-form.html",
+      "surface": "dom",
+      "dimensions": { "width": 800, "height": 450 },
+      "expected": [
+        { "kind": "email", "x": 86, "y": 163, "width": 360, "height": 42 },
+        { "kind": "password", "x": 86, "y": 258, "width": 360, "height": 42 }
+      ]
+    },
+    {
+      "id": "screenshot-indian-identifiers",
+      "asset": "screenshot-indian-identifiers.svg",
+      "surface": "screenshot_image",
+      "dimensions": { "width": 800, "height": 450 },
+      "expected": [
+        { "kind": "government_id", "x": 71, "y": 155, "width": 218, "height": 29 },
+        { "kind": "account_number", "x": 71, "y": 207, "width": 260, "height": 29 }
+      ]
+    },
+    {
+      "id": "canvas-like-contact-card",
+      "asset": "canvas-like-contact-card.svg",
+      "surface": "canvas_like",
+      "dimensions": { "width": 800, "height": 450 },
+      "expected": [
+        { "kind": "email", "x": 86, "y": 179, "width": 286, "height": 30 },
+        { "kind": "phone", "x": 86, "y": 230, "width": 214, "height": 30 }
+      ]
+    },
+    {
+      "id": "profile-avatar-and-debit-card",
+      "asset": "profile-avatar-and-debit-card.svg",
+      "surface": "profile_image",
+      "dimensions": { "width": 800, "height": 450 },
+      "expected": [
+        { "kind": "face", "x": 81, "y": 94, "width": 164, "height": 164 },
+        { "kind": "payment", "x": 388, "y": 210, "width": 270, "height": 33 }
+      ]
+    },
+    {
+      "id": "adversarial-devenagari-spaced-id",
+      "asset": "adversarial-devenagari-spaced-id.svg",
+      "surface": "screenshot_image",
+      "dimensions": { "width": 800, "height": 450 },
+      "expected": [
+        { "kind": "government_id", "x": 95, "y": 225, "width": 258, "height": 33 },
+        { "kind": "email", "x": 95, "y": 274, "width": 248, "height": 33 }
+      ]
+    },
+    {
+      "id": "unknown-visual-surface",
+      "asset": "unknown-visual-surface.svg",
+      "surface": "unknown",
+      "expectedPolicy": "withhold_visual_export",
+      "dimensions": { "width": 800, "height": 450 },
+      "expected": []
+    }
+  ]
+}

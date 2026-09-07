@@ -88,6 +88,11 @@ const inlineRules: Array<{ kind: PiiKind; pattern: RegExp }> = [
   // Do not consume the first twelve digits of a longer payment/account value.
   { kind: "government_id", pattern: /(?<!\d)\d{4}[\s-]?\d{4}[\s-]?\d{4}(?![\d\s-]*\d)/g },
   { kind: "government_id", pattern: /\b[A-Z]{5}\d{4}[A-Z]\b/g },
+  // Indian voter IDs and passports often appear in OCR output without a label.
+  { kind: "government_id", pattern: /\b[A-Z]{3}\s?\d{7}\b/g },
+  { kind: "government_id", pattern: /\b[A-PR-WY]\d{7}\b/g },
+  // IFSC is a bank-routing identifier: four bank letters, a zero, then six characters.
+  { kind: "account_number", pattern: /\b[A-Z]{4}\s?0[A-Z0-9]{6}\b/g },
   { kind: "account_number", pattern: /(?<!\d)\d{9,18}(?!\d)/g },
   // Catch full tokens as well as intentionally truncated dashboard representations.
   { kind: "token", pattern: /\b(?:Bearer\s+)?(?:sk|pk|api)[_-][A-Za-z0-9._-]{6,}\b/g }

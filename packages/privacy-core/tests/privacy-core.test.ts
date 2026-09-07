@@ -23,6 +23,12 @@ describe("privacy-core", () => {
     expect(result.redactions).toEqual(["token"]);
   });
 
+  it("redacts Indian visual identifiers that OCR can read without a field label", () => {
+    const result = sanitizeText("IFSC SBIN 0001234 · Voter ABC 1234567 · Passport P1234567");
+    expect(result.value).toBe("IFSC [ACCOUNT_REDACTED] · Voter [ID_REDACTED] · Passport [ID_REDACTED]");
+    expect(result.redactions).toEqual(["government_id", "account_number"]);
+  });
+
   it("never exports sensitive field values or query-bearing URLs", () => {
     const context = createSanitizedPageContext({
       url: `https://portal.example.gov.in/track?email=${secrets.email}`,

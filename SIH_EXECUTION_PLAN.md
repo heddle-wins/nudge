@@ -182,10 +182,12 @@ Both must return the same strictly validated action schema. No extension code sh
 - [x] Integrate PP-OCR text detection and recognition in an offscreen worker. (PRs #30–#32 bundle detector/recognizer/vocabulary, run both in the offscreen host, and turn locally classified OCR PII into captured-image masks.)
 - [x] Detect PII in OCR text with existing and expanded Indian PII rules. (PR #34 adds IFSC, voter ID, and passport patterns alongside existing email, phone, Aadhaar, PAN, payment, account, and token rules.)
 - [ ] Add MobileViT screen-state classification.
-- [ ] Merge DOM, OCR, face, and user-marked boxes into one redaction plan.
-- [ ] Add redaction padding and post-redaction re-OCR verification.
+- [x] Merge DOM, OCR, face, and user-marked boxes into one redaction plan. (PR #32 combines DOM-derived—including user-marked—regions with locally classified OCR and YuNet face regions before rendering.)
+- [x] Add redaction padding and post-redaction re-OCR verification. (PR #36 re-scans the exact rendered redacted screenshot locally; any remaining face or OCR-classified PII blocks export.)
 
 **Done when:** a screenshot containing a profile face, Aadhaar-like ID, email, and password is redacted locally without network access.
+
+**Current limitation:** the conservative `canExportRedactedViewport()` policy still withholds any page containing an image, canvas, or iframe *before* visual scanning. This means the new local models do not yet permit export of a page with a profile photo or canvas/PDF text. Do not relax that fail-closed rule until controlled browser fixtures prove the visual scan and residue gate cover those surfaces.
 
 ### Phase 3 — Send the protected image to a VLM
 
@@ -276,14 +278,16 @@ The internal 41-repository comparison informed this plan. The projects to beat a
 - Merged [PR #28](https://github.com/heddle-wins/nudge/pull/28): moved YuNet session creation and raw-pixel inference into Chrome's extension-owned offscreen document. The service worker receives only the resulting face boxes.
 - Merged [PRs #30–#32](https://github.com/heddle-wins/nudge/pull/32): bundled PP-OCRv4 ONNX detector/recognizer, decoded local text regions and CTC output, and returned only PII-classified mask boxes from the offscreen document. OCR text itself is not sent to the service worker or reasoning server.
 - Merged [PR #34](https://github.com/heddle-wins/nudge/pull/34): expanded local visual-PII rules for OCR-readable IFSC, voter ID, and passport values with regression tests.
-- Verification for this checkpoint: API tests (8), contracts and extension TypeScript checks, privacy-core tests (9), and extension tests (12) all passed locally.
+- Merged [PR #36](https://github.com/heddle-wins/nudge/pull/36): added a final local residue gate over the exact rendered screenshot. It fails closed if face detection or OCR finds remaining protected visual content; raw OCR text stays in the offscreen document.
+- Verification for this checkpoint: API tests (10), TypeScript checks, privacy-core tests (10), extension tests (24), and the extension production build all passed locally.
 
-**Progress:** Phase 1 is materially started (2 of 5 checklist items checked); Phase 2 has 4 of 7 items complete (local runtime, offscreen YuNet face redaction, offscreen PP-OCR, and local OCR PII rules). Fusion/residue verification and screen-state classification remain; Phase 3 is underway (3 of 6 checked). The next priority is post-redaction OCR residue verification.
+**Progress:** Phase 1 is materially started (2 of 5 checklist items checked); Phase 2 has 6 of 7 items complete (local runtime, offscreen YuNet face redaction, offscreen PP-OCR, local OCR PII rules, fusion, and exact-image residue verification). Screen-state classification remains. Phase 3 is underway (3 of 6 checked). Before changing the current image/canvas/iframe block rule, the next priority is a controlled browser fixture corpus and measured visual-coverage tests.
 
 Continue Phase 1 and Phase 2 together:
 
 1. Define the safe screenshot/redaction contracts and one-way egress gate.
-2. Add Indian OCR PII rules and post-redaction OCR residue verification.
+2. Add MobileViT screen-state classification, with a measured model-size and fallback budget.
+3. Build browser fixtures for profile photos, canvas/PDF-like text, and Indian PII; only then allow successful local vision coverage to replace the conservative image/canvas/iframe export block.
 4. Render the exact redacted blob in the chat before sending it anywhere.
 
 That is the shortest path from the current secure DOM agent to a credible SIH26171 submission.

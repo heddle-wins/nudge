@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 export const piiKindSchema = z.enum([
+  "face",
   "password",
   "email",
   "phone",

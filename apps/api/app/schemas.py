@@ -9,6 +9,7 @@ class StrictModel(BaseModel):
 
 
 class PiiKind(str, Enum):
+    face = "face"
     password = "password"
     email = "email"
     phone = "phone"

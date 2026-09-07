@@ -10,8 +10,9 @@ const backgroundSource = readFileSync(
 describe("captured-pixel egress canary", () => {
   it("routes a browser capture through the local canvas renderer before a receipt is created", () => {
     expect(backgroundSource).toMatch(/const rawCapture = await chrome\.tabs\.captureVisibleTab/);
-    expect(backgroundSource).toMatch(/args: \[rawCapture, inspection\.visualRedactions/);
-    expect(backgroundSource).toMatch(/return createSafeScreenshot\(rendered\.result/);
+    expect(backgroundSource).toMatch(/const detectedFaces = await detectFaces\(rawCapture/);
+    expect(backgroundSource).toMatch(/args: \[rawCapture, \[\.\.\.inspection\.visualRedactions, \.\.\.faceRegions\]/);
+    expect(backgroundSource).toMatch(/screenshot: await createSafeScreenshot\(rendered\.result/);
   });
 
   it("does not serialize the named raw browser capture in the reasoning request", () => {

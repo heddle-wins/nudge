@@ -30,11 +30,12 @@ export async function renderRedactedViewport(
 
   for (const region of regions) {
     const padding = 4;
+    const scale = region.coordinateSpace === "image" ? { x: 1, y: 1 } : { x: scaleX, y: scaleY };
     context.fillRect(
-      Math.max(0, (region.x - padding) * scaleX),
-      Math.max(0, (region.y - padding) * scaleY),
-      Math.min(image.naturalWidth, (region.width + padding * 2) * scaleX),
-      Math.min(image.naturalHeight, (region.height + padding * 2) * scaleY)
+      Math.max(0, (region.x - padding) * scale.x),
+      Math.max(0, (region.y - padding) * scale.y),
+      Math.min(image.naturalWidth, (region.width + padding * 2) * scale.x),
+      Math.min(image.naturalHeight, (region.height + padding * 2) * scale.y)
     );
   }
 

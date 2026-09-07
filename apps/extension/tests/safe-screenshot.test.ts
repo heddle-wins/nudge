@@ -13,7 +13,7 @@ describe("safe screenshot egress gate", () => {
     }));
   });
 
-  it("rejects a raw or non-PNG capture before it can become an outbound artifact", async () => {
+  it("rejects a non-PNG capture before it can become an outbound artifact", async () => {
     await expect(createSafeScreenshot("data:image/jpeg;base64,cmF3", { width: 1, height: 1 }))
       .rejects.toThrow("only export a locally redacted PNG");
   });

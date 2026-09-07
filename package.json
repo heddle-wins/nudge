@@ -12,7 +12,8 @@
     "measure:api": "bash scripts/measure-api-latency.sh",
     "measure:extension-bundle": "node scripts/measure-extension-bundle.mjs",
     "fixtures:rasterize": "node scripts/rasterize-visual-fixtures.mjs",
-    "fixtures:vision": "node scripts/run-extension-visual-fixtures.mjs"
+    "fixtures:vision": "node scripts/run-extension-visual-fixtures.mjs",
+    "fixtures:vision-report": "node scripts/report-extension-vision-fixtures.mjs"
   },
   "devDependencies": {
     "turbo": "^2.3.3"

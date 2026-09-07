@@ -18,6 +18,7 @@ import { evaluateExecutionPolicy } from "../execution-policy";
 import { createSafeScreenshot } from "../safe-screenshot";
 import { browserSupportsWebGpu } from "../vision/runtime";
 import { detectVisualPrivacyOffscreen } from "../vision/offscreen-client";
+import { assertNoVisualPrivacyResidue } from "../vision/residue";
 
 chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch(console.error);
 
@@ -75,6 +76,9 @@ async function createRedactedViewport(tabId: number) {
     args: [rawCapture, [...inspection.visualRedactions, ...visualRegions], viewport ?? { width: target.width ?? 1, height: target.height ?? 1 }]
   });
   if (typeof rendered?.result !== "string") throw new Error("Nudge could not render the protected viewport.");
+  // Re-run the local face/OCR pipeline against the exact redacted pixels. This
+  // is the last gate before the image can become a SafeScreenshot.
+  assertNoVisualPrivacyResidue(await detectVisualPrivacyOffscreen(rendered.result));
   return {
     screenshot: await createSafeScreenshot(rendered.result, {
       width: viewport?.width ?? target.width ?? 1,

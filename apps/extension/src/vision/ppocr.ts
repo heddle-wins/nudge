@@ -116,6 +116,11 @@ export async function loadPpOcrVocabulary() {
   return text.split(/\r?\n/).filter(Boolean);
 }
 
+/** A work limit must reject the whole scan, never silently omit visible text. */
+export function assertOcrRegionBudget(regionCount: number) {
+  if (regionCount > 150) throw new Error("Local OCR text-region budget exceeded; screenshot export is unavailable.");
+}
+
 /** Run both local PP-OCR models; recognized strings never leave the offscreen document. */
 export async function detectOcrText(
   screenshotDataUrl: string,
@@ -137,8 +142,9 @@ export async function detectOcrText(
   const scoreMap = detectorOutput[detector.outputNames[0]];
   if (!scoreMap) throw new Error("PP-OCR detector returned no score map.");
   const regions = decodePpOcrRegions(scoreMap, screenshot);
+  assertOcrRegionBudget(regions.length);
   const recognized: Array<TextRegion & RecognizedText> = [];
-  for (const region of regions.slice(0, 150)) {
+  for (const region of regions) {
     const recognitionInput = preprocessPpOcrRecognizer(image, region);
     const recognitionOutput = await recognizer.run({ [recognizer.inputNames[0]]: recognitionInput });
     const logits = recognitionOutput[recognizer.outputNames[0]];

@@ -11,7 +11,7 @@ import {
   type PiiKind,
   type SanitizedPageContext
 } from "@nudge/contracts";
-import { collectRawPageContext, markElementPrivate } from "../content/collect";
+import { beginVisualPrivacyMark, collectRawPageContext, markElementPrivate } from "../content/collect";
 import { executeApprovedAction } from "../content/execute";
 import { renderRedactedViewport } from "../content/viewport";
 import { evaluateExecutionPolicy } from "../execution-policy";
@@ -106,6 +106,17 @@ async function markPrivate(tabId: number, elementId: string) {
   return { ok: injection?.result === true };
 }
 
+async function startVisualPrivacyMark(tabId: number) {
+  try {
+    const response = await chrome.tabs.sendMessage(tabId, { type: "NUDGE_BEGIN_VISUAL_PRIVACY_MARK" });
+    if (response?.ok) return response;
+  } catch {
+    // Inject the same local selector when the tab predates extension installation.
+  }
+  const [injection] = await chrome.scripting.executeScript({ target: { tabId }, func: beginVisualPrivacyMark });
+  return { ok: injection?.result === true };
+}
+
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message?.type !== "NUDGE_INSPECT_TAB" || typeof message.tabId !== "number") return;
   inspectTab(message.tabId).then(async (response) => {
@@ -126,6 +137,12 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       };
     }
   }).then(sendResponse);
+  return true;
+});
+
+chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  if (message?.type !== "NUDGE_BEGIN_VISUAL_PRIVACY_MARK" || typeof message.tabId !== "number") return;
+  startVisualPrivacyMark(message.tabId).then(sendResponse).catch(() => sendResponse({ ok: false }));
   return true;
 });
 

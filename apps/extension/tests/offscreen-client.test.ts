@@ -27,7 +27,9 @@ describe("offscreen vision client", () => {
       regions: [{ x: 1, y: 2, width: 3, height: 4, score: 0.9, kind: "face" }],
       scanMs: 42.5,
       modelLoadMs: 31.25,
-      backends: ["wasm"]
+      backends: ["wasm"],
+      ocrDetectedRegionCount: 2,
+      ocrRecognizedRegionCount: 1
     });
     vi.stubGlobal("crypto", { randomUUID: () => "fixed-request" });
     vi.stubGlobal("chrome", {
@@ -41,7 +43,7 @@ describe("offscreen vision client", () => {
     });
 
     await expect(detectVisualPrivacyOffscreen("data:image/png;base64,cmF3LWxvY2FsLW9ubHk=")).resolves.toEqual({
-      regions: [{ x: 1, y: 2, width: 3, height: 4, score: 0.9, kind: "face" }], scanMs: 42.5, modelLoadMs: 31.25, backends: ["wasm"]
+      regions: [{ x: 1, y: 2, width: 3, height: 4, score: 0.9, kind: "face" }], scanMs: 42.5, modelLoadMs: 31.25, backends: ["wasm"], ocrDetectedRegionCount: 2, ocrRecognizedRegionCount: 1
     });
     expect(createDocument).toHaveBeenCalledWith(expect.objectContaining({
       url: "src/offscreen/index.html", reasons: ["WORKERS"]

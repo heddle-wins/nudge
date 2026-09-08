@@ -62,6 +62,11 @@ const timing = {
   percentileMethod: "nearest-rank; scan samples include the initial cold scan",
   backends: [...new Set(run.fixtures.flatMap((fixture) => fixture.scan.backends ?? []))]
 };
-const report = { schemaVersion: 1, sourceRun: relative(root, input), environment: run.environment ?? null, measurementScope: "Detector boxes only; excludes renderer padding, DOM fusion, and post-redaction OCR. Coverage is labelled rectangle coverage, not proof of leaked text or final screenshot safety.", protectedCoverageThreshold: 0.99, timing, totals: { ...totals, precision: totals.matchedMasks / Math.max(1, totals.matchedMasks + totals.falsePositiveMasks), recall: totals.protectedRegions / Math.max(1, totals.expectedRegions) }, fixtures };
+const ocr = {
+  detectedRegions: run.fixtures.reduce((total, fixture) => total + (Number.isInteger(fixture.scan.ocrDetectedRegionCount) ? fixture.scan.ocrDetectedRegionCount : 0), 0),
+  recognizedRegions: run.fixtures.reduce((total, fixture) => total + (Number.isInteger(fixture.scan.ocrRecognizedRegionCount) ? fixture.scan.ocrRecognizedRegionCount : 0), 0),
+  scope: "Count-only telemetry from the local offscreen document; it contains no recognized OCR strings."
+};
+const report = { schemaVersion: 1, sourceRun: relative(root, input), environment: run.environment ?? null, measurementScope: "Detector boxes only; excludes renderer padding, DOM fusion, and post-redaction OCR. Coverage is labelled rectangle coverage, not proof of leaked text or final screenshot safety.", protectedCoverageThreshold: 0.99, timing, ocr, totals: { ...totals, precision: totals.matchedMasks / Math.max(1, totals.matchedMasks + totals.falsePositiveMasks), recall: totals.protectedRegions / Math.max(1, totals.expectedRegions) }, fixtures };
 await writeFile(output, `${JSON.stringify(report, null, 2)}\n`);
 process.stdout.write(`Wrote metrics for ${fixtures.length} fixtures to ${output}\n`);

@@ -48,13 +48,13 @@ chrome.runtime.onMessage.addListener((message: VisionRequest, _sender, sendRespo
   const started = performance.now();
   Promise.all([localYuNetSession(), localPpOcrSessions()])
     .then(async ([yuNet, ocr]) => {
-      const [faces, text] = await Promise.all([
+      const [faces, ocrResult] = await Promise.all([
         detectFaces(message.screenshot, yuNet.session),
         detectOcrText(message.screenshot, ocr.detector, ocr.recognizer, ocr.vocabulary)
       ]);
       const regions: VisualRegion[] = [
         ...faces.faces.map((face) => ({ ...face, kind: "face" as const })),
-        ...text.flatMap((hit) => sanitizeText(hit.text).redactions.map((kind) => ({ x: hit.x, y: hit.y, width: hit.width, height: hit.height, score: hit.score, kind })))
+        ...ocrResult.hits.flatMap((hit) => sanitizeText(hit.text).redactions.map((kind) => ({ x: hit.x, y: hit.y, width: hit.width, height: hit.height, score: hit.score, kind })))
       ];
       return {
         regions,
@@ -63,7 +63,10 @@ chrome.runtime.onMessage.addListener((message: VisionRequest, _sender, sendRespo
         // It remains available on warm scans so benchmark records can separate startup
         // cost from the per-scan duration.
         modelLoadMs: Math.max(yuNet.loadMs, ocr.loadMs),
-        backends: [...new Set([yuNet.backend, ...ocr.backends])]
+        backends: [...new Set([yuNet.backend, ...ocr.backends])],
+        // Counts only: no recognized text leaves the offscreen document.
+        ocrDetectedRegionCount: ocrResult.detectedRegionCount,
+        ocrRecognizedRegionCount: ocrResult.hits.length
       };
     })
     .then(

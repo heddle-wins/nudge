@@ -6,6 +6,7 @@ export const PPOCR_VOCABULARY_PATH = "models/ch_PP-OCR_keys_v1.txt";
 
 export type TextRegion = { x: number; y: number; width: number; height: number; score: number };
 export type RecognizedText = { text: string; confidence: number };
+export type OcrDetectionResult = { hits: Array<TextRegion & RecognizedText>; detectedRegionCount: number };
 
 const DETECTOR_MAX_SIDE = 960;
 const DETECTOR_STRIDE = 4;
@@ -31,9 +32,9 @@ export function preprocessPpOcrDetector(image: ImageData): ort.Tensor {
   for (let y = 0; y < dimensions.height; y += 1) {
     const sourceY = Math.min(image.height - 1, Math.floor(y * image.height / dimensions.height));
     for (let x = 0; x < dimensions.width; x += 1) {
+      const target = y * dimensions.width + x;
       const sourceX = Math.min(image.width - 1, Math.floor(x * image.width / dimensions.width));
       const source = (sourceY * image.width + sourceX) * 4;
-      const target = y * dimensions.width + x;
       for (let channel = 0; channel < 3; channel += 1) {
         pixels[channel * dimensions.width * dimensions.height + target] = (image.data[source + channel] / 255 - MEAN[channel]) / STD[channel];
       }
@@ -131,7 +132,7 @@ export async function detectOcrText(
   detector: ort.InferenceSession,
   recognizer: ort.InferenceSession,
   vocabulary: string[]
-): Promise<Array<TextRegion & RecognizedText>> {
+): Promise<OcrDetectionResult> {
   const response = await fetch(screenshotDataUrl);
   const bitmap = await createImageBitmap(await response.blob());
   const screenshot = { width: bitmap.width, height: bitmap.height };
@@ -156,5 +157,5 @@ export async function detectOcrText(
     const result = decodePpOcrText(logits, vocabulary);
     if (result.text && result.confidence >= 0.5) recognized.push({ ...region, ...result });
   }
-  return recognized;
+  return { hits: recognized, detectedRegionCount: regions.length };
 }

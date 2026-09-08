@@ -12,7 +12,7 @@ describe("frozen visual privacy fixture corpus", () => {
   it("covers image, canvas-like, profile, Indian-ID, multilingual, and adversarial cases", () => {
     expect(manifest.schemaVersion).toBe(1);
     expect(manifest.fixtures.map((fixture) => fixture.surface)).toEqual(expect.arrayContaining(["dom", "screenshot_image", "canvas_like", "profile_image", "unknown"]));
-    expect(manifest.fixtures.map((fixture) => fixture.id)).toEqual(expect.arrayContaining(["screenshot-indian-identifiers", "adversarial-devenagari-spaced-id"]));
+    expect(manifest.fixtures.map((fixture) => fixture.id)).toEqual(expect.arrayContaining(["screenshot-indian-identifiers", "adversarial-devenagari-spaced-id", "synthetic-face-portrait"]));
   });
 
   it("keeps every labelled box inside a real, frozen source asset", () => {

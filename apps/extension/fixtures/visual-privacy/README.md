@@ -1,6 +1,6 @@
 # Visual privacy fixtures
 
-These are frozen, synthetic visual inputs for controlled browser evaluation. They intentionally contain only fake identifiers and an illustrated avatar; never add a customer screenshot, a real face, or a real credential.
+These are frozen, synthetic visual inputs for controlled browser evaluation. They intentionally contain only fake identifiers, an illustrated avatar, and one AI-generated fictional portrait; never add a customer screenshot, a real face, or a real credential.
 
 Run `npm run fixtures:rasterize` from the repository root to rasterize every source through local headless Chrome. It creates timestamped PNGs and a hash/timing `run.json` under the ignored `artifacts/visual-fixtures` directory. Use `-- --out artifacts/visual-fixtures/my-run` to choose a new, repository-local output directory, or `-- --chrome /path/to/chrome` to choose the browser binary.
 

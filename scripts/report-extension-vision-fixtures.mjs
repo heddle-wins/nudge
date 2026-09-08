@@ -25,9 +25,8 @@ function covered(expected, masks) {
   }
   return total;
 }
-function score(fixtureRun, fixture) {
+function score(fixtureRun, fixture, masks = fixtureRun.scan.regions ?? []) {
   const expected = fixture.expected ?? [];
-  const masks = fixtureRun.scan.regions ?? [];
   let protectedRegions = 0; let protectedPixels = 0; let residualPixels = 0;
   const byKind = {};
   for (const region of expected) {
@@ -41,12 +40,37 @@ function score(fixtureRun, fixture) {
   const predictedPixels = masks.reduce((total, mask) => total + area(mask), 0);
   return { id: fixture.id, expectedRegions: expected.length, protectedRegions, missedRegions: expected.length - protectedRegions, matchedMasks, falsePositiveMasks: masks.length - matchedMasks, precision: masks.length ? matchedMasks / masks.length : expected.length ? 0 : 1, recall: expected.length ? protectedRegions / expected.length : 1, coverage: protectedPixels + residualPixels ? protectedPixels / (protectedPixels + residualPixels) : 1, residualSensitivePixels: residualPixels, byKind };
 }
+function renderedMasks(fixtureRun) {
+  const padding = 4;
+  return (fixtureRun.scan.regions ?? []).map((region) => {
+    const x = Math.max(0, region.x - padding);
+    const y = Math.max(0, region.y - padding);
+    const right = Math.min(fixtureRun.dimensions.width, region.x + region.width + padding);
+    const bottom = Math.min(fixtureRun.dimensions.height, region.y + region.height + padding);
+    return { ...region, x, y, width: Math.max(0, right - x), height: Math.max(0, bottom - y) };
+  });
+}
 const fixtures = run.fixtures.map((fixtureRun) => {
   const fixture = fixtureById.get(fixtureRun.id);
   if (!fixture) throw new Error(`Run contains unknown fixture: ${fixtureRun.id}`);
   return score(fixtureRun, fixture);
 });
-const totals = fixtures.reduce((total, fixture) => ({ expectedRegions: total.expectedRegions + fixture.expectedRegions, protectedRegions: total.protectedRegions + fixture.protectedRegions, missedRegions: total.missedRegions + fixture.missedRegions, matchedMasks: total.matchedMasks + fixture.matchedMasks, falsePositiveMasks: total.falsePositiveMasks + fixture.falsePositiveMasks, residualSensitivePixels: total.residualSensitivePixels + fixture.residualSensitivePixels }), { expectedRegions: 0, protectedRegions: 0, missedRegions: 0, matchedMasks: 0, falsePositiveMasks: 0, residualSensitivePixels: 0 });
+const renderedFixtures = run.fixtures.map((fixtureRun) => {
+  const fixture = fixtureById.get(fixtureRun.id);
+  if (!fixture) throw new Error(`Run contains unknown fixture: ${fixtureRun.id}`);
+  return score(fixtureRun, fixture, renderedMasks(fixtureRun));
+});
+function aggregate(fixturesToAggregate) {
+  const total = fixturesToAggregate.reduce((result, fixture) => ({ expectedRegions: result.expectedRegions + fixture.expectedRegions, protectedRegions: result.protectedRegions + fixture.protectedRegions, missedRegions: result.missedRegions + fixture.missedRegions, matchedMasks: result.matchedMasks + fixture.matchedMasks, falsePositiveMasks: result.falsePositiveMasks + fixture.falsePositiveMasks, residualSensitivePixels: result.residualSensitivePixels + fixture.residualSensitivePixels }), { expectedRegions: 0, protectedRegions: 0, missedRegions: 0, matchedMasks: 0, falsePositiveMasks: 0, residualSensitivePixels: 0 });
+  return { ...total, precision: total.matchedMasks / Math.max(1, total.matchedMasks + total.falsePositiveMasks), recall: total.protectedRegions / Math.max(1, total.expectedRegions) };
+}
+const totals = aggregate(fixtures);
+const finalRenderer = {
+  paddingPixels: 4,
+  scope: "Exact image-coordinate expansion used by the production canvas renderer for visual detector masks. It excludes DOM-derived masks and does not prove post-redaction OCR safety.",
+  totals: aggregate(renderedFixtures),
+  fixtures: renderedFixtures
+};
 function percentile(values, percentileValue) {
   const sorted = [...values].filter(Number.isFinite).sort((left, right) => left - right);
   if (!sorted.length) return undefined;
@@ -75,6 +99,6 @@ const resources = {
   gpuUtilization: "unavailable_from_chrome_devtools",
   scope: "Heap values are DevTools snapshots taken after local scan and residue scan, not a guaranteed process peak. CPU/GPU utilization is intentionally not inferred from wall-clock latency."
 };
-const report = { schemaVersion: 1, sourceRun: relative(root, input), environment: run.environment ?? null, measurementScope: "Detector boxes only; excludes renderer padding, DOM fusion, and post-redaction OCR. Coverage is labelled rectangle coverage, not proof of leaked text or final screenshot safety.", protectedCoverageThreshold: 0.99, timing, ocr, resources, totals: { ...totals, precision: totals.matchedMasks / Math.max(1, totals.matchedMasks + totals.falsePositiveMasks), recall: totals.protectedRegions / Math.max(1, totals.expectedRegions) }, fixtures };
+const report = { schemaVersion: 1, sourceRun: relative(root, input), environment: run.environment ?? null, measurementScope: "Detector boxes only; excludes DOM fusion and post-redaction OCR. Coverage is labelled rectangle coverage, not proof of leaked text or final screenshot safety.", protectedCoverageThreshold: 0.99, timing, ocr, resources, totals, fixtures, finalRenderer };
 await writeFile(output, `${JSON.stringify(report, null, 2)}\n`);
 process.stdout.write(`Wrote metrics for ${fixtures.length} fixtures to ${output}\n`);

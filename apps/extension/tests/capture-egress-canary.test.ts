@@ -24,8 +24,7 @@ describe("captured-pixel egress canary", () => {
     expect(protectedViewportSource).toMatch(/const residueScan = await detectVisualPrivacyOffscreen\(rendered\.result\);\s+assertNoVisualPrivacyResidue\(residueScan\.regions\)/);
     expect(protectedViewportSource).toMatch(/screenshot: await createSafeScreenshot\(rendered\.result, viewport\)/);
     expect(backgroundSource).toMatch(/createProtectedViewport\(message\.tabId\)/);
-    expect(backgroundSource).toMatch(/chrome\.tabs\.onUpdated\.addListener\(\(tabId, changeInfo\) => \{\s+if \(changeInfo\.status === "loading" \|\| changeInfo\.url\) protectedScreenshots\.delete\(tabId\)/);
-    expect(backgroundSource).toMatch(/chrome\.tabs\.onRemoved\.addListener\(\(tabId\) => protectedScreenshots\.delete\(tabId\)/);
+    expect(backgroundSource).not.toContain("protectedScreenshots");
   });
 
   it("regenerates a service-worker-owned receipt and context immediately before the reasoning request", () => {

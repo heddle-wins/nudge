@@ -37,6 +37,9 @@ async function connect(url) {
   socket.addEventListener("message", (event) => { const message = JSON.parse(event.data); const call = pending.get(message.id); if (!call) return; pending.delete(message.id); message.error ? call.reject(new Error(message.error.message)) : call.resolve(message.result); });
   return { send(method, params = {}) { const id = ++serial; socket.send(JSON.stringify({ id, method, params })); return new Promise((resolveCall, rejectCall) => pending.set(id, { resolve: resolveCall, reject: rejectCall })); }, close() { socket.close(); } };
 }
+function metricValue(metrics, name) {
+  return metrics.find((metric) => metric.name === name)?.value;
+}
 
 const profile = await mkdtemp(resolve(tmpdir(), "nudge-vision-fixture-chrome-"));
 const port = 9229;
@@ -61,6 +64,19 @@ try {
   };
   const { id: extensionId } = await devtools.send("Extensions.loadUnpacked", { path: resolve(extension, "dist") });
   const extensionOrigin = `chrome-extension://${extensionId}`;
+  async function sampleOffscreenMetrics() {
+    const offscreen = await waitFor(async () => (await getJson(`http://127.0.0.1:${port}/json/list`))
+      .find((target) => target.url === `${extensionOrigin}/src/offscreen/index.html`), "Nudge's offscreen vision debugger");
+    const offscreenPage = await connect(offscreen.webSocketDebuggerUrl);
+    try {
+      await offscreenPage.send("Performance.enable");
+      const result = await offscreenPage.send("Performance.getMetrics");
+      return {
+        jsHeapUsedBytes: metricValue(result.metrics, "JSHeapUsedSize") ?? null,
+        jsHeapTotalBytes: metricValue(result.metrics, "JSHeapTotalSize") ?? null
+      };
+    } finally { offscreenPage.close(); }
+  }
   const activationTarget = await devtools.send("Target.createTarget", { url: `${extensionOrigin}/src/sidepanel/index.html` });
   const extensionPageInfo = await waitFor(async () => (await getJson(`http://127.0.0.1:${port}/json/list`)).find((target) => target.id === activationTarget.targetId), "Nudge's extension page debugger");
   const extensionPage = await connect(extensionPageInfo.webSocketDebuggerUrl);
@@ -88,6 +104,7 @@ try {
     const detection = await extensionPage.send("Runtime.evaluate", { expression, awaitPromise: true, returnByValue: true });
     const scan = detection.result.value?.scan;
     if (!scan || !Array.isArray(scan.regions) || !Number.isFinite(scan.scanMs) || !Number.isFinite(scan.modelLoadMs)) throw new Error(`Extension-local detection failed for ${fixture.id}: ${JSON.stringify(detection)}.`);
+    const afterScanMetrics = await sampleOffscreenMetrics();
     const extensionRoundTripMs = Math.round((performance.now() - started) * 100) / 100;
     const masks = scan.regions.map((region) => ({ ...region, coordinateSpace: "image" }));
     // Render and re-scan inside the extension page. Redacted pixels never enter
@@ -99,7 +116,8 @@ try {
     const residueResult = await extensionPage.send("Runtime.evaluate", { expression: residueExpression, awaitPromise: true, returnByValue: true });
     const residueScan = residueResult.result.value?.scan;
     if (!residueScan || !Array.isArray(residueScan.regions)) throw new Error(`Residue scan failed for ${fixture.id}`);
-    runs.push({ id: fixture.id, surface: fixture.surface, expectedPolicy: fixture.expectedPolicy ?? "redact_then_evaluate", dimensions, extensionRoundTripMs, scan, residueScan, residueScope: "Visual detector masks plus production renderer padding; excludes DOM fusion. Zero detections does not establish zero leaks." });
+    const afterResidueMetrics = await sampleOffscreenMetrics();
+    runs.push({ id: fixture.id, surface: fixture.surface, expectedPolicy: fixture.expectedPolicy ?? "redact_then_evaluate", dimensions, extensionRoundTripMs, scan, residueScan, localResources: { afterScan: afterScanMetrics, afterResidue: afterResidueMetrics, cpuTime: "unavailable_from_chrome_devtools", gpuUtilization: "unavailable_from_chrome_devtools" }, residueScope: "Visual detector masks plus production renderer padding; excludes DOM fusion. Zero detections does not establish zero leaks." });
     page.close(); await devtools.send("Target.closeTarget", { targetId: target.targetId });
   }
   await mkdir(output, { recursive: true });

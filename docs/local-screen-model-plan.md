@@ -51,6 +51,11 @@ per-state precision, recall, F1, accuracy, and macro F1; it also reports any
 taxonomy state missing from the held-out set. Do not report a macro-F1 release
 result while `missingExpectedStates` is non-empty.
 
+`apps/extension/fixtures/screen-state/` contains one fictional full-screen
+acceptance fixture for each state, including `unknown`. These are a regression
+suite for a future browser model, not model-training data or a performance
+claim.
+
 Until these gates pass, Nudge must describe its current local models accurately:
 YuNet provides face redaction and PP-OCR provides text recognition/redaction;
 there is **no task-trained screen-state model yet**.

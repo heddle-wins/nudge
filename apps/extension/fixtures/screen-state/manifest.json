@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Controlled, fictional full-screen fixtures for local screen-state model acceptance testing. They are not training labels or production accuracy evidence.",
+  "fixtures": [
+    { "id": "ordinary-service-search", "asset": "ordinary-service-search.html", "expectedState": "ordinary_workflow" },
+    { "id": "credential-sign-in", "asset": "credential-sign-in.html", "expectedState": "credential_or_auth" },
+    { "id": "payment-confirmation", "asset": "payment-confirmation.html", "expectedState": "payment_or_financial" },
+    { "id": "mfa-verification", "asset": "mfa-verification.html", "expectedState": "mfa_or_captcha" },
+    { "id": "application-received", "asset": "application-received.html", "expectedState": "result_or_confirmation" },
+    { "id": "ambiguous-unavailable", "asset": "ambiguous-unavailable.html", "expectedState": "unknown" }
+  ]
+}

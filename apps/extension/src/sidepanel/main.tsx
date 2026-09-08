@@ -104,7 +104,7 @@ function App() {
     setConversation((items) => [...items, { id: crypto.randomUUID(), role: "user", kind: "text", text: task }, { id: loadingId, role: "assistant", kind: "loading", text: "Reviewing the protected page context…" }]);
     try {
       await chrome.storage.local.set({ nudgeReasoningServerUrl: serverUrl.trim() });
-      const response = await chrome.runtime.sendMessage({ type: "NUDGE_REQUEST_NEXT_ACTION", serverUrl: serverUrl.trim(), payload: { task, context: state.context, redactionManifest: { count: state.context.page.redactions.count, types: [...new Set([...state.context.page.redactions.types, ...state.visualRedactionTypes])], visualMaskCount: state.visualRedactionCount, renderer: "local-canvas-dom-v1" }, ...(state.screenshot ? { screenshot: state.screenshot } : {}) } });
+      const response = await chrome.runtime.sendMessage({ type: "NUDGE_REQUEST_NEXT_ACTION", tabId: state.page.tabId, serverUrl: serverUrl.trim(), payload: { task, context: state.context, redactionManifest: { count: state.context.page.redactions.count, types: [...new Set([...state.context.page.redactions.types, ...state.visualRedactionTypes])], visualMaskCount: state.visualRedactionCount, renderer: "local-canvas-dom-v1" } } });
       if (!response?.ok) throw new Error(response?.error ?? "Nudge could not get a safe action proposal.");
       const proposal = response.proposal as NextActionResponse;
       setConversation((items) => items.map((item) => item.id === loadingId ? { id: loadingId, role: "assistant", kind: "proposal", proposal } : item));

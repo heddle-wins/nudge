@@ -111,6 +111,10 @@ export const nextActionRequestSchema = z.object({
 export type NextActionRequest = z.infer<typeof nextActionRequestSchema>;
 export type VisionReasoningRequest = NextActionRequest;
 
+/** UI-to-service-worker request. A protected image receipt is service-worker-owned. */
+export const nextActionDraftSchema = nextActionRequestSchema.omit({ screenshot: true });
+export type NextActionDraft = z.infer<typeof nextActionDraftSchema>;
+
 export const nextActionResponseSchema = z.object({
   schemaVersion: z.literal("1.0"),
   action: proposedActionSchema,

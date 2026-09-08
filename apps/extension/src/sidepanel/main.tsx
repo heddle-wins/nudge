@@ -31,6 +31,7 @@ function App() {
   const [serverUrl, setServerUrl] = useState(LOCAL_SERVER);
   const [audit, setAudit] = useState<AuditEntry[]>([]);
   const requestSerial = useRef(0);
+  const conversationTabId = useRef<number | null>(null);
 
   const loadAudit = useCallback(async () => {
     const response = await chrome.runtime.sendMessage({ type: "NUDGE_GET_AUDIT" });
@@ -43,6 +44,11 @@ function App() {
     try {
       const tab = knownTab ?? (await chrome.tabs.query({ active: true, lastFocusedWindow: true }))[0];
       if (!tab?.id || !tab.url) throw new Error("No active browser tab was found.");
+      // A navigation or ordinary page update must not erase the proof of what
+      // Nudge sent or the preceding conversation. Keep history scoped to the
+      // tab, while execution still independently re-checks the live page.
+      if (conversationTabId.current !== null && conversationTabId.current !== tab.id) setConversation([]);
+      conversationTabId.current = tab.id;
       const response = await chrome.runtime.sendMessage({ type: "NUDGE_INSPECT_TAB", tabId: tab.id, includeViewport: true });
       if (!response?.ok) throw new Error(response?.error ?? "Nudge cannot inspect this page.");
       if (serial !== requestSerial.current) return;
@@ -59,14 +65,12 @@ function App() {
         viewportError: typeof response.viewportError === "string" ? response.viewportError : undefined
       });
       setOpenPrivacyPanel(null);
-      setConversation([]);
     } catch {
       if (serial !== requestSerial.current) return;
       // Browser-owned pages cannot be inspected. Keep that state in the composer
       // instead of adding an alarming conversation message.
       setState({ status: "error", label: "This page isn’t available to Nudge" });
       setOpenPrivacyPanel(null);
-      setConversation([]);
     }
   }, []);
 

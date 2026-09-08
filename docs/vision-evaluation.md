@@ -23,8 +23,9 @@ node scripts/run-extension-visual-fixtures.mjs
 
 The controlled Chrome run builds the fixture-only extension, runs the local
 models against seven fictional fixtures, and writes only mask geometry, counts,
-timings, model backend metadata, and machine metadata to an ignored artifact.
-It never writes a screenshot or recognized OCR text.
+timings, model backend metadata, safe receipt hashes, and machine metadata to
+an ignored artifact. It never writes a screenshot, request body, or recognized
+OCR text.
 
 For each fixture, two checks are intentionally kept separate:
 
@@ -44,6 +45,14 @@ rg 'NUDGE_FIXTURE|__nudgeFixture' apps/extension/dist
 ```
 
 The final command must produce no matches.
+
+The fixture runner also makes one real service-worker request for the DOM
+credential fixture to a local schema-valid test server. In memory, that server
+checks that the direct fictional email/password values are absent and that the
+receipt hash sent in the request is exactly the hash returned to the side panel.
+The generated artifact stores only the result booleans, safe hash, and image
+dimensions. This complements final-pixel proof; it is not a general-network or
+production-server certification.
 
 ## Baseline observed on 2026-09-08
 

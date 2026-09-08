@@ -3,6 +3,7 @@ import { access, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promise
 import { arch, availableParallelism, cpus, platform, release, tmpdir, totalmem } from "node:os";
 import { dirname, relative, resolve } from "node:path";
 import { spawn } from "node:child_process";
+import { createServer } from "node:http";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -40,6 +41,40 @@ async function connect(url) {
 function metricValue(metrics, name) {
   return metrics.find((metric) => metric.name === name)?.value;
 }
+
+// This receives one fixture-only, schema-valid proposal request. The runner
+// retains no request body in its artifact: it checks the privacy boundary in
+// memory and records only booleans, dimensions, and the safe receipt hash.
+const egressRequests = [];
+const egressServer = createServer((request, response) => {
+  if (request.method !== "POST" || request.url !== "/v1/next-action") {
+    response.writeHead(404).end();
+    return;
+  }
+  const chunks = [];
+  request.on("data", (chunk) => chunks.push(chunk));
+  request.on("end", () => {
+    try {
+      egressRequests.push(JSON.parse(Buffer.concat(chunks).toString("utf8")));
+      response.writeHead(200, { "Content-Type": "application/json" }).end(JSON.stringify({
+        schemaVersion: "1.0",
+        action: { type: "report_result", message: "Protected fixture request received." },
+        rationale: "The controlled fixture verifies the local egress boundary.",
+        confidence: 1,
+        requiresConfirmation: true
+      }));
+    } catch {
+      response.writeHead(400).end();
+    }
+  });
+});
+await new Promise((resolveListen, rejectListen) => {
+  egressServer.once("error", rejectListen);
+  egressServer.listen(0, "127.0.0.1", resolveListen);
+});
+const egressAddress = egressServer.address();
+if (!egressAddress || typeof egressAddress === "string") throw new Error("Could not allocate the local egress fixture server.");
+const egressServerUrl = `http://127.0.0.1:${egressAddress.port}`;
 
 const profile = await mkdtemp(resolve(tmpdir(), "nudge-vision-fixture-chrome-"));
 const port = 9229;
@@ -81,6 +116,7 @@ try {
   const extensionPageInfo = await waitFor(async () => (await getJson(`http://127.0.0.1:${port}/json/list`)).find((target) => target.id === activationTarget.targetId), "Nudge's extension page debugger");
   const extensionPage = await connect(extensionPageInfo.webSocketDebuggerUrl);
   const runs = [];
+  let egress = undefined;
   for (const fixture of manifest.fixtures) {
     const asset = resolve(fixtureRoot, fixture.asset);
     if (relative(fixtureRoot, asset).startsWith("..")) throw new Error(`Fixture escapes its root: ${fixture.id}`);
@@ -142,15 +178,60 @@ try {
     const protectedViewportMs = Math.round((performance.now() - protectedViewportStarted) * 100) / 100;
     const protectedViewport = protectedResult.result.value;
     if (protectedViewport?.ok && !Array.isArray(protectedViewport.redactionPlan)) throw new Error(`Fixture protected viewport returned invalid geometry for ${fixture.id}`);
+    if (fixture.id === "dom-credential-form") {
+      const requestExpression = `(async () => {
+        const [tab] = await chrome.tabs.query({ url: ${JSON.stringify(fixtureUrl)} });
+        if (!tab?.id) return { ok: false, error: "Fixture tab was not found." };
+        const response = await chrome.runtime.sendMessage({
+          type: "NUDGE_REQUEST_NEXT_ACTION",
+          tabId: tab.id,
+          serverUrl: ${JSON.stringify(egressServerUrl)},
+          payload: { task: "Verify the protected fixture request" }
+        });
+        return response?.ok ? {
+          ok: true,
+          receipt: response.protectedContext?.screenshot ? {
+            sha256: response.protectedContext.screenshot.sha256,
+            width: response.protectedContext.screenshot.width,
+            height: response.protectedContext.screenshot.height
+          } : undefined
+        } : response;
+      })()`;
+      const requestResult = await extensionPage.send("Runtime.evaluate", { expression: requestExpression, awaitPromise: true, returnByValue: true });
+      const workerResult = requestResult.result.value;
+      if (!workerResult?.ok || !workerResult.receipt?.sha256) throw new Error(`Protected fixture request failed: ${JSON.stringify(workerResult)}`);
+      const received = await waitFor(() => egressRequests[0], "protected fixture request");
+      const serialized = JSON.stringify(received);
+      // These are deliberately fictional source values in dom-credential-form.html.
+      // The test checks direct serialization separately from the pixel proof,
+      // which verifies that the rendered receipt actually covers the regions.
+      const forbiddenValues = ["demo.person@example.test", "not-a-real-secret"];
+      const leakedValue = forbiddenValues.find((value) => serialized.includes(value));
+      if (leakedValue) throw new Error(`Raw fixture value reached the reasoning server: ${leakedValue}`);
+      if (!received?.screenshot?.dataUrl?.startsWith("data:image/png;base64,") || received.screenshot.sha256 !== workerResult.receipt.sha256) {
+        throw new Error("Reasoning request receipt did not match the worker's protected receipt.");
+      }
+      egress = {
+        status: "verified",
+        requestCount: egressRequests.length,
+        receiptSha256: workerResult.receipt.sha256,
+        width: workerResult.receipt.width,
+        height: workerResult.receipt.height,
+        rawFixtureValuesAbsent: true,
+        exactWorkerReceiptMatched: true
+      };
+    }
     const afterResidueMetrics = await sampleOffscreenMetrics();
     runs.push({ id: fixture.id, surface: fixture.surface, expectedPolicy: fixture.expectedPolicy ?? "redact_then_evaluate", dimensions, extensionRoundTripMs, scan, residueScan, pixelProof, protectedViewportMs, protectedViewport: protectedViewport?.ok ? { status: "ready", redactionPlan: protectedViewport.redactionPlan, visualRegionCount: protectedViewport.visualRegionCount } : { status: "withheld", reason: typeof protectedViewport?.error === "string" ? protectedViewport.error : "Nudge could not create the protected fixture viewport." }, localResources: { afterScan: afterScanMetrics, afterResidue: afterResidueMetrics, cpuTime: "unavailable_from_chrome_devtools", gpuUtilization: "unavailable_from_chrome_devtools" }, residueScope: "Detector re-scan is not independent. pixelProof separately checks final rendered pixels against fixture ground truth; it covers visual detector masks plus renderer padding and excludes DOM fusion." });
     page.close(); await devtools.send("Target.closeTarget", { targetId: target.targetId });
   }
   await mkdir(output, { recursive: true });
-  await writeFile(resolve(output, "run.json"), `${JSON.stringify({ schemaVersion: 1, generatedAt: new Date().toISOString(), environment, note: "Synthetic extension-context inference evidence. Contains detector mask geometry, timing, backend metadata, and local test hardware only; no raw screenshots or recognized OCR strings.", fixtures: runs }, null, 2)}\n`);
+  if (egress?.status !== "verified") throw new Error("The controlled worker-to-server egress check did not run.");
+  await writeFile(resolve(output, "run.json"), `${JSON.stringify({ schemaVersion: 1, generatedAt: new Date().toISOString(), environment, note: "Synthetic extension-context inference evidence. Contains detector mask geometry, timing, backend metadata, local test hardware, and safe receipt hashes only; no raw screenshots, request bodies, or recognized OCR strings.", egress, fixtures: runs }, null, 2)}\n`);
   process.stdout.write(`Ran extension-local vision on ${runs.length} fixtures; evidence written to ${output}\n`);
   extensionPage.close(); await devtools.send("Target.closeTarget", { targetId: activationTarget.targetId }); devtools.close();
 } finally {
   if (browser.exitCode === null) { const closed = new Promise((resolveClose) => browser.once("close", resolveClose)); browser.kill(); await Promise.race([closed, sleep(5_000)]); }
   await rm(profile, { recursive: true, force: true, maxRetries: 3, retryDelay: 250 }).catch(() => undefined);
+  await new Promise((resolveClose) => egressServer.close(resolveClose));
 }

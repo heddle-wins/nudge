@@ -4,9 +4,11 @@ import type { ExecutionResult, NextActionResponse, PiiKind, SafeScreenshot, Sani
 import type { RedactionDetail } from "@nudge/privacy-core";
 import "./styles.css";
 import { renderRedactedViewport } from "../content/viewport";
+import { proveRenderedFixturePixels } from "../vision/pixel-proof";
 
 if (import.meta.env.MODE === "fixture") {
   Object.defineProperty(globalThis, "__nudgeFixtureRender", { value: renderRedactedViewport });
+  Object.defineProperty(globalThis, "__nudgeFixturePixelProof", { value: proveRenderedFixturePixels });
 }
 
 type PageIdentity = { tabId: number; title: string; origin: string; hostname: string; faviconUrl: string };

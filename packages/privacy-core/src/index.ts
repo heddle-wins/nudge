@@ -89,7 +89,8 @@ const inlineRules: Array<{ kind: PiiKind; pattern: RegExp }> = [
   { kind: "payment", pattern: /(?<!\d)(?:\d[ -]?){13,19}(?!\d)/g },
   // Do not consume the first twelve digits of a longer payment/account value.
   { kind: "government_id", pattern: /(?<!\d)\d{4}[\s-]?\d{4}[\s-]?\d{4}(?![\d\s-]*\d)/g },
-  { kind: "government_id", pattern: /\b[A-Z]{5}\d{4}[A-Z]\b/g },
+  // OCR and adversarial layouts may insert one space between every PAN character.
+  { kind: "government_id", pattern: /\b[A-Z]\s?[A-Z]\s?[A-Z]\s?[A-Z]\s?[A-Z]\s?\d\s?\d\s?\d\s?\d\s?[A-Z]\b/g },
   // Indian voter IDs and passports often appear in OCR output without a label.
   { kind: "government_id", pattern: /\b[A-Z]{3}\s?\d{7}\b/g },
   { kind: "government_id", pattern: /\b[A-PR-WY]\d{7}\b/g },

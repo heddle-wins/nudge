@@ -62,6 +62,19 @@ there is **no task-trained screen-state model yet**.
 
 ## Curation workflow now in the repository
 
+For a bounded public ScreenParse metadata page, start with:
+
+```bash
+npm run screen-state:fetch-review-queue -- \
+  --output /safe/local/nudge-screenparse-candidates.jsonl \
+  --offset 0 --length 100
+```
+
+This command pins the dataset revision/licence and writes review candidates
+only. It does not download source screenshots or write source OCR/text; use a
+controlled licensed dataset workspace to retrieve an approved candidate image
+when a reviewer needs to see it.
+
 `scripts/build-screen-state-review-queue.mjs` turns a locally obtained
 ScreenParse JSONL projection into a review queue. It accepts only records with
 `id`, `url`, `texts`, `width`, and `height`; it never downloads images, calls a

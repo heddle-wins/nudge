@@ -23,11 +23,11 @@ flowchart LR
 
 1. Start the API with the deterministic mock provider or the configured FastRouter provider. Load `apps/extension/dist` at `chrome://extensions`.
 2. Serve the portal: `pnpm demo:portal`, then open `http://127.0.0.1:4173`.
-3. Click **Inspect active page**. Open **Protected items** and **View sanitized context**. Point out that the fictional email, phone, Aadhaar-like ID, and PAN-like ID appear only as typed placeholders.
+3. Nudge automatically inspects the active page. Open the **items redacted** control, then **View sanitized context**. Point out that the fictional email, phone, Aadhaar-like ID, and PAN-like ID appear only as typed placeholders. The preview is a locally rendered protected view, not the raw page screenshot.
 4. Ask: “Find the scholarship service.” The model may propose the search field. In **Text to enter locally**, enter `Scholarship` yourself and confirm. Nudge permits this only for a verified ordinary text/search field; it ignores provider-proposed text and marks the field private after insertion.
-5. Inspect again. The entered search text is absent from the outbound context. Request and confirm the low-risk path: **Find service** → **Open scholarship tracker** → **View application status**.
-6. Open the restricted-step example and inspect again. Point out the OTP/MFA gate and submit control. Nudge must pause; the person completes verification and submission directly.
-7. Open **Local audit**. It records only action types/outcomes, never values, page text, or URLs.
+5. Request the next action. Nudge re-inspects the current page before every proposal; the entered search text is absent from the new outbound context. Open the protected receipt in the proposal bubble and confirm the low-risk path: **Find service** → **Open scholarship tracker** → **View application status**.
+6. Open the restricted-step example and ask Nudge again. Point out the OTP/MFA gate and submit control. Nudge must pause; the person completes verification and submission directly.
+7. Open **Privacy controls** → **Local audit**. It records only action types/outcomes, never values, page text, screenshots, or URLs.
 
 ## Privacy-boundary slide
 
@@ -35,7 +35,7 @@ Use this as one slide in the SIH deck.
 
 | Stays in the browser | May leave the browser |
 | --- | --- |
-| Raw DOM, screenshot, cookies, credentials, fake citizen PII, user-entered local text | Sanitized origin/title, semantic control IDs, redaction placeholders, enabled/visible state, user task |
+| Raw DOM, screenshot, cookies, credentials, fake citizen PII, user-entered local text | Sanitized origin/title, semantic control IDs, redaction placeholders, enabled/visible state, user task, and the freshly redacted screenshot receipt |
 | Local policy validates every live target and executes only confirmed low-risk actions | Reasoning service returns one schema-constrained proposal |
 
 **Slide headline:** *Privacy is enforced before intelligence is invoked.*

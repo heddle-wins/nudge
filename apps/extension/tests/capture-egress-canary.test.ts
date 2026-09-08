@@ -57,4 +57,10 @@ describe("captured-pixel egress canary", () => {
     expect(sidepanelSource).toContain("Exact locally redacted page view sent with this proposal");
     expect(sidepanelSource).toContain("Protected page view sent · receipt");
   });
+
+  it("keeps local proof surfaces in the active privacy panel", () => {
+    expect(sidepanelSource).toContain("View sanitized context");
+    expect(sidepanelSource).toContain("Local audit ({audit.length})");
+    expect(sidepanelSource).not.toContain("function PageContext(");
+  });
 });

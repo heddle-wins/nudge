@@ -37,6 +37,9 @@ describe("captured-pixel egress canary", () => {
     expect(requestSource).toContain("createProtectedViewport(tabId, rawPage)");
     expect(requestSource).toContain("createOutboundSafeContext(rawPage)");
     expect(requestSource).toContain("screenshot: protectedViewport.screenshot");
+    expect(requestSource).toContain("const visualMaskTypes = [...new Set(protectedViewport.redactionPlan.map((region) => region.kind))]");
+    expect(requestSource).toContain("visualMaskCount: protectedViewport.redactionPlan.length");
+    expect(requestSource).toContain("visualRedactionCount: protectedViewport.redactionPlan.length");
     expect(requestSource).not.toContain("payload.screenshot");
     expect(requestSource).toContain("body: JSON.stringify(request)");
   });

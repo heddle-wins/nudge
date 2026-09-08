@@ -293,9 +293,13 @@ The extension re-resolves every target from the current local page immediately a
 - [x] Add user-approved local typing that never reaches the reasoning server.
 - [x] Add controlled fake-PII fixtures and a reproducible measurement protocol.
 - [x] Prepare the privacy-boundary slide content and fallback-recording shot list.
-- [ ] Package extension and Dockerized server for reproducible judging.
+- [x] Package the production-built unpacked extension and localhost-only Docker Compose server/portal stack for reproducible judging.
 
-The non-deployment demo kit is in [phase-five-demo.md](phase-five-demo.md). It includes the controlled SevaSetu portal, precise presenter steps, fixture evidence, measurement commands, and a recording shot list. A team member must still capture the final video on the selected demonstration machine; it must use only the fictional portal data.
+The demo kit is in [phase-five-demo.md](phase-five-demo.md). It includes the
+controlled SevaSetu portal, a localhost-only Compose path, precise presenter
+steps, fixture evidence, measurement commands, and a recording shot list. A
+team member must still capture the final video on the selected demonstration
+machine; it must use only the fictional portal data.
 
 ## 12. Definition of done
 

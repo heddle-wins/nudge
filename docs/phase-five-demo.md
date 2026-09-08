@@ -1,6 +1,8 @@
 # Phase 5 demo kit
 
-This kit intentionally excludes VPS/Docker deployment packaging. It makes the local demonstration reproducible and gives the SIH team a clear, defensible story.
+This kit uses the reproducible local Compose stack for the API and fictional
+portal. The privacy-critical extension remains a production-built unpacked
+Chrome/Chromium extension, so its on-device browser boundary is unchanged.
 
 ## Controlled workflow
 
@@ -21,8 +23,8 @@ flowchart LR
 
 ## Five-minute SIH walkthrough
 
-1. Start the API with the deterministic mock provider or the configured FastRouter provider. Load `apps/extension/dist` at `chrome://extensions`.
-2. Serve the portal: `pnpm demo:portal`, then open `http://127.0.0.1:4173`.
+1. From the repository root, start the deterministic local stack with `docker compose up --build`. It binds only to localhost. Load the production-built `apps/extension/dist` at `chrome://extensions` as an unpacked extension.
+2. Open `http://127.0.0.1:4173`. To use a hosted provider instead of the mock, configure server-only variables as described in [the API README](../apps/api/README.md); never put a key in the extension.
 3. Nudge automatically inspects the active page. Open the **items redacted** control, then **View sanitized context**. Point out that the fictional email, phone, Aadhaar-like ID, and PAN-like ID appear only as typed placeholders. The preview is a locally rendered protected view, not the raw page screenshot.
 4. Ask: “Find the scholarship service.” The model may propose the search field. In **Text to enter locally**, enter `Scholarship` yourself and confirm. Nudge permits this only for a verified ordinary text/search field; it ignores provider-proposed text and marks the field private after insertion.
 5. Request the next action. Nudge re-inspects the current page before every proposal; the entered search text is absent from the new outbound context. Open the protected receipt in the proposal bubble and confirm the low-risk path: **Find service** → **Open scholarship tracker** → **View application status**.
@@ -45,6 +47,10 @@ Use this as one slide in the SIH deck.
 ## Fallback recording shot list
 
 Record the seven walkthrough moments above in a single 1080p browser capture. Keep the side panel visible. Never record real accounts or values—use only SevaSetu’s fictional fixture. If live reasoning is unavailable, use the mock provider and say so at the start of the recording.
+
+Before recording or handing off the project, run `npm run smoke:compose`. It
+builds both local services, makes one sanitized mock reasoning request, verifies
+the portal, and removes the containers automatically.
 
 ## Verified fixture evidence
 

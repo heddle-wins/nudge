@@ -10,7 +10,6 @@ import {
   type NextActionRequest,
   type NextActionResponse,
   type PiiKind,
-  type SafeScreenshot,
   type SanitizedPageContext
 } from "@nudge/contracts";
 import { beginVisualPrivacyMark, collectRawPageContext, markElementPrivate } from "../content/collect";
@@ -21,19 +20,6 @@ import { detectVisualPrivacyOffscreen } from "../vision/offscreen-client";
 import { createProtectedViewport } from "../vision/protected-viewport";
 
 chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch(console.error);
-
-// The side panel receives this image only to preview what will be sent. The
-// request path uses this service-worker-owned receipt, never one supplied back
-// by the UI or another extension message sender.
-const protectedScreenshots = new Map<number, { origin: string; screenshot: SafeScreenshot }>();
-
-// A receipt belongs to one inspected document state. Remove it as soon as the
-// tab begins navigating (including same-origin SPA URL changes), rather than
-// allowing a short side-panel refresh race to reuse an older preview.
-chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
-  if (changeInfo.status === "loading" || changeInfo.url) protectedScreenshots.delete(tabId);
-});
-chrome.tabs.onRemoved.addListener((tabId) => protectedScreenshots.delete(tabId));
 
 async function inspectTab(tabId: number) {
   try {
@@ -124,10 +110,8 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message?.type !== "NUDGE_INSPECT_TAB" || typeof message.tabId !== "number") return;
   inspectTab(message.tabId).then(async (response) => {
     if (!response.ok || !message.includeViewport) return response;
-    protectedScreenshots.delete(message.tabId);
     try {
       const protectedViewport = await createProtectedViewport(message.tabId);
-      protectedScreenshots.set(message.tabId, { origin: response.context.page.urlOrigin, screenshot: protectedViewport.screenshot });
       return {
         ...response,
         screenshot: protectedViewport.screenshot,
@@ -274,7 +258,6 @@ async function requestNextAction(payload: unknown, serverUrl: unknown, tabId: un
   const context = createOutboundSafeContext(rawPage);
   const inspection = createPrivacyInspection(rawPage);
   const protectedViewport = await createProtectedViewport(tabId, rawPage);
-  protectedScreenshots.set(tabId, { origin: context.page.urlOrigin, screenshot: protectedViewport.screenshot });
   const request = nextActionRequestSchema.parse({
     task: draft.task,
     context,

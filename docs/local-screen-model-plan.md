@@ -47,3 +47,25 @@ payment, or destructive-action policy.
 Until these gates pass, Nudge must describe its current local models accurately:
 YuNet provides face redaction and PP-OCR provides text recognition/redaction;
 there is **no task-trained screen-state model yet**.
+
+## Curation workflow now in the repository
+
+`scripts/build-screen-state-review-queue.mjs` turns a locally obtained
+ScreenParse JSONL projection into a review queue. It accepts only records with
+`id`, `url`, `texts`, `width`, and `height`; it never downloads images, calls a
+network service, or writes the source OCR/text into its output. The text rules
+are triage only: every output record has `reviewStatus: "needs_human_review"`.
+Conflicting signals become `unknown`, not a fabricated label.
+
+```bash
+npm run screen-state:review-queue -- \
+  --input /safe/local/screenparse-sample.jsonl \
+  --output /safe/local/nudge-screen-state-review.jsonl
+```
+
+The resulting queue retains a hostname and a deterministic website-disjoint
+train/validation/test split. A reviewer must add a verified state label and
+reject ambiguous/inapplicable screenshots before any screenshot reaches a
+training set. Store reviewed datasets and screenshots outside the repository;
+record only their revision, licence, reviewer protocol, and aggregate metrics
+in the release evidence.

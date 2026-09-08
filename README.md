@@ -160,7 +160,7 @@ pnpm typecheck
 pnpm build
 ```
 
-To try the extension in Chrome or Chromium, load `apps/extension/dist` as an unpacked extension from `chrome://extensions`, open the Nudge side panel, and select **Inspect active page**. The panel displays the sanitized browser context and, only when every visible region can be safely inspected, a locally redacted viewport preview that would be eligible for a future server request. You can mark either a visible field or a dragged page area private for the current page. Firefox is not supported yet; see the [browser support boundary](docs/browser-support.md).
+To try the extension in Chrome or Chromium, load `apps/extension/dist` as an unpacked extension from `chrome://extensions` and open the Nudge side panel on a normal web page. Nudge inspects the active page locally. When you send a task, the service worker re-inspects the current page, renders and residue-checks a fresh local redaction, and sends only that sanitized context and image receipt to the reasoning server. The exact outgoing receipt appears beside the resulting proposal in the chat. You can mark either a visible field or a dragged page area private for the current page. Firefox is not supported yet; see the [browser support boundary](docs/browser-support.md).
 
 The privacy tests use deliberately fake PII and verify that emails, phones, Aadhaar-like IDs, PANs, card and account numbers, passwords, custom user-marked values, and URL query data do not appear in the generated context.
 

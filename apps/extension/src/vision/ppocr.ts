@@ -69,7 +69,11 @@ export function decodePpOcrRegions(
       }
     }
     if (count < minCells) continue;
-    const padding = 1;
+    // DB predicts shrunken text interiors. Approximate the reference unclip
+    // distance (area * ratio / perimeter) on our axis-aligned component box.
+    const boxWidth = maxX - minX + 1;
+    const boxHeight = maxY - minY + 1;
+    const padding = Math.max(1, boxWidth * boxHeight * 1.5 / (2 * (boxWidth + boxHeight)));
     const x = clamp((minX - padding) * screenshot.width / columns, 0, screenshot.width);
     const y = clamp((minY - padding) * screenshot.height / rows, 0, screenshot.height);
     const right = clamp((maxX + 1 + padding) * screenshot.width / columns, 0, screenshot.width);

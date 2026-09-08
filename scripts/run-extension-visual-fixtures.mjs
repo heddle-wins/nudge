@@ -11,6 +11,14 @@ const fixtureRoot = resolve(extension, "fixtures/visual-privacy");
 const output = resolve(process.argv.includes("--out") ? process.argv[process.argv.indexOf("--out") + 1] : resolve(root, "artifacts/extension-visual-fixtures", new Date().toISOString().replaceAll(":", "-")));
 if (relative(root, output).startsWith("..")) throw new Error("--out must remain inside this repository.");
 try { await access(output); throw new Error(`Refusing to overwrite existing output directory: ${output}`); } catch (error) { if (error?.code !== "ENOENT") throw error; }
+// The fixture receiver is deliberately excluded from production bundles. Build
+// this controlled test variant here so this command cannot accidentally load a
+// preceding production `dist` and report an empty message response as evidence.
+await new Promise((resolveBuild, rejectBuild) => {
+  const build = spawn(resolve(extension, "node_modules/.bin/vite"), ["build", "--mode", "fixture"], { cwd: extension, stdio: "inherit" });
+  build.once("error", rejectBuild);
+  build.once("close", (code, signal) => code === 0 ? resolveBuild() : rejectBuild(new Error(`Fixture extension build failed (${signal ?? code ?? "unknown"}).`)));
+});
 await access(resolve(extension, "dist/manifest.json"));
 const manifest = JSON.parse(await readFile(resolve(fixtureRoot, "manifest.json"), "utf8"));
 if (manifest.schemaVersion !== 1 || !Array.isArray(manifest.fixtures)) throw new Error("Unsupported visual fixture manifest.");

@@ -21,6 +21,15 @@ describe("PP-OCR local processing", () => {
     expect(regions[0]?.score).toBeCloseTo(0.8);
   });
 
+  it("unclips larger DB components beyond the one-cell minimum", () => {
+    const scores = new Float32Array(100);
+    for (let y = 3; y <= 6; y += 1) for (let x = 3; x <= 6; x += 1) scores[y * 10 + x] = 0.9;
+    const [region] = decodePpOcrRegions(tensor(scores, [1, 1, 10, 10]), { width: 1000, height: 1000 });
+    // A 4x4 DB component has approximate unclip distance 1.5 map cells.
+    // The old fixed one-cell padding would have yielded x=200 and width=600.
+    expect(region).toMatchObject({ x: 150, y: 150, width: 700, height: 700 });
+  });
+
   it("CTC-decodes distinct nonblank characters and averages their confidence", () => {
     const logits = new Float32Array([
       0.1, 0.9, 0.0,

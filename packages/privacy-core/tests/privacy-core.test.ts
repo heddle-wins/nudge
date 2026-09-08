@@ -29,6 +29,12 @@ describe("privacy-core", () => {
     expect(result.redactions).toEqual(["government_id", "account_number"]);
   });
 
+  it("redacts a PAN value when OCR preserves character spacing", () => {
+    const result = sanitizeText("PAN A B C D E 1 2 3 4 F");
+    expect(result.value).toBe("PAN [ID_REDACTED]");
+    expect(result.redactions).toEqual(["government_id"]);
+  });
+
   it("never exports sensitive field values or query-bearing URLs", () => {
     const context = createSanitizedPageContext({
       url: `https://portal.example.gov.in/track?email=${secrets.email}`,

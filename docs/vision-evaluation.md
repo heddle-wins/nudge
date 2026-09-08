@@ -66,6 +66,21 @@ mask and covered **2/2 credential regions with zero residual pixels**. Other
 fixture surfaces were correctly withheld because the browser could not prove
 that their complete visual content was safely exportable.
 
+## Protected-viewport duration
+
+The fixture runner also records `protectedViewportMs`: wall time for the local
+capability from the extension call until it returns. For an eligible page that
+includes tab capture, DOM-mask fusion, visual scan, canvas rendering, residue
+scan, and receipt hashing. It excludes all server/network/model-reasoning time.
+
+The later run at
+`artifacts/extension-visual-fixtures/2026-09-08T08-22-47.218Z/run.json`
+measured **2,045.94 ms** for the eligible DOM credential fixture on its recorded
+development host. The withheld fixtures returned in 3.19–6.47 ms because the
+fail-closed policy rejected them before capture. This is a single controlled
+development measurement, not a device-performance promise; collect repeated
+warm/cold runs on the intended demo hardware before reporting a latency target.
+
 ## What this proves—and does not
 
 It proves that, for the zero-residual controlled cases, the final renderer

@@ -15,6 +15,7 @@
     "fixtures:vision": "node scripts/run-extension-visual-fixtures.mjs",
     "fixtures:vision-report": "node scripts/report-extension-vision-fixtures.mjs",
     "screen-state:review-queue": "node scripts/build-screen-state-review-queue.mjs",
+    "screen-state:fetch-review-queue": "node scripts/fetch-screenparse-review-queue.mjs",
     "screen-state:validate-review": "node scripts/validate-screen-state-training-set.mjs"
   },
   "devDependencies": {

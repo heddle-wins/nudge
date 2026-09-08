@@ -2,6 +2,7 @@ import { canExportRedactedViewport, createOutboundSafeContext, createPrivacyInsp
 import {
   executionRequestSchema,
   executionResultSchema,
+  nextActionDraftSchema,
   nextActionRequestSchema,
   nextActionResponseSchema,
   sanitizedPageContextSchema,
@@ -9,6 +10,7 @@ import {
   type NextActionRequest,
   type NextActionResponse,
   type PiiKind,
+  type SafeScreenshot,
   type SanitizedPageContext
 } from "@nudge/contracts";
 import { beginVisualPrivacyMark, collectRawPageContext, markElementPrivate } from "../content/collect";
@@ -21,6 +23,11 @@ import { detectVisualPrivacyOffscreen } from "../vision/offscreen-client";
 import { assertNoVisualPrivacyResidue } from "../vision/residue";
 
 chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch(console.error);
+
+// The side panel receives this image only to preview what will be sent. The
+// request path uses this service-worker-owned receipt, never one supplied back
+// by the UI or another extension message sender.
+const protectedScreenshots = new Map<number, { origin: string; screenshot: SafeScreenshot }>();
 
 async function inspectTab(tabId: number) {
   try {
@@ -135,8 +142,10 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message?.type !== "NUDGE_INSPECT_TAB" || typeof message.tabId !== "number") return;
   inspectTab(message.tabId).then(async (response) => {
     if (!response.ok || !message.includeViewport) return response;
+    protectedScreenshots.delete(message.tabId);
     try {
       const protectedViewport = await createRedactedViewport(message.tabId);
+      protectedScreenshots.set(message.tabId, { origin: response.context.page.urlOrigin, screenshot: protectedViewport.screenshot });
       return {
         ...response,
         screenshot: protectedViewport.screenshot,
@@ -273,8 +282,14 @@ function reasoningEndpoint(serverUrl: string) {
   return url.toString();
 }
 
-async function requestNextAction(payload: unknown, serverUrl: unknown) {
-  const request = nextActionRequestSchema.parse(payload);
+async function requestNextAction(payload: unknown, serverUrl: unknown, tabId: unknown) {
+  const draft = nextActionDraftSchema.parse(payload);
+  if (typeof tabId !== "number" || !Number.isInteger(tabId) || tabId < 0) throw new Error("Nudge requires the inspected browser tab before requesting a proposal.");
+  const protectedScreenshot = protectedScreenshots.get(tabId);
+  const request = nextActionRequestSchema.parse({
+    ...draft,
+    ...(protectedScreenshot?.origin === draft.context.page.urlOrigin ? { screenshot: protectedScreenshot.screenshot } : {})
+  });
   if (typeof serverUrl !== "string") throw new Error("Set a reasoning server URL before requesting a proposal.");
   const response = await fetch(reasoningEndpoint(serverUrl), {
     method: "POST",
@@ -292,8 +307,8 @@ async function requestNextAction(payload: unknown, serverUrl: unknown) {
 }
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-  if (message?.type !== "NUDGE_REQUEST_NEXT_ACTION") return;
-  requestNextAction(message.payload, message.serverUrl).then(
+  if (message?.type !== "NUDGE_REQUEST_NEXT_ACTION" || typeof message.tabId !== "number") return;
+  requestNextAction(message.payload, message.serverUrl, message.tabId).then(
     (proposal) => sendResponse({ ok: true, proposal }),
     (error) => sendResponse({ ok: false, error: error instanceof Error ? error.message : "Nudge could not get a safe action proposal." })
   );

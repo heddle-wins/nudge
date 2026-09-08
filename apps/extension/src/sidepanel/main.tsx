@@ -150,7 +150,7 @@ function App() {
   const isReady = state.status === "ready";
   return <main className="app-shell">
     {openPrivacyPanel && <button className="privacy-backdrop" type="button" aria-label="Close privacy panel" onClick={() => setOpenPrivacyPanel(null)} />}
-    {state.status === "ready" && <PrivacySummary view={state} openPanel={openPrivacyPanel} onOpenPanelChange={setOpenPrivacyPanel} onMarkPrivate={markPrivate} onMarkVisualPrivate={markVisualPrivate} />}
+    {state.status === "ready" && <PrivacySummary view={state} audit={audit} openPanel={openPrivacyPanel} onOpenPanelChange={setOpenPrivacyPanel} onMarkPrivate={markPrivate} onMarkVisualPrivate={markVisualPrivate} />}
     <section className="conversation-viewport">
       <section className="conversation" aria-live="polite" aria-label="Nudge conversation">
         {state.status === "loading" && <AssistantBubble kind="loading">Inspecting this page locally…</AssistantBubble>}
@@ -176,7 +176,7 @@ function App() {
   </main>;
 }
 
-function PrivacySummary({ view, openPanel, onOpenPanelChange, onMarkPrivate, onMarkVisualPrivate }: { view: ReadyView; openPanel: "redactions" | "controls" | null; onOpenPanelChange: (panel: "redactions" | "controls" | null) => void; onMarkPrivate: (id: string) => Promise<void>; onMarkVisualPrivate: () => Promise<void> }) {
+function PrivacySummary({ view, audit, openPanel, onOpenPanelChange, onMarkPrivate, onMarkVisualPrivate }: { view: ReadyView; audit: AuditEntry[]; openPanel: "redactions" | "controls" | null; onOpenPanelChange: (panel: "redactions" | "controls" | null) => void; onMarkPrivate: (id: string) => Promise<void>; onMarkVisualPrivate: () => Promise<void> }) {
   const privateFields = view.context.page.elements.filter((element) => element.role === "textbox" || element.role === "combobox").slice(0, 20);
   const redactions = view.context.page.redactions.count + view.visualRedactionCount;
   return <section className="privacy-summary" aria-label="Privacy controls">
@@ -188,6 +188,7 @@ function PrivacySummary({ view, openPanel, onOpenPanelChange, onMarkPrivate, onM
         {view.visualScan && <p className="visual-scan-summary">Scanned locally in {Math.round(view.visualScan.scanMs)} ms via {view.visualScan.backends.join(" + ")} (model load {Math.round(view.visualScan.modelLoadMs)} ms); redacted pixels were checked again in {Math.round(view.visualScan.residueScanMs)} ms.</p>}
         {view.screenshot && <><img className="protected-preview" src={view.screenshot.dataUrl} alt="Exact locally redacted page view that will be sent to the reasoning server" /><p className="visual-scan-summary">Exact outgoing view · receipt {view.screenshot.sha256.slice(0, 12)}…</p></>}
         {view.viewportError && <p className="drawer-error">{view.viewportError}</p>}
+        <details className="nested-details"><summary>View sanitized context</summary><pre>{JSON.stringify(view.context, null, 2)}</pre></details>
       </div>
     </details>
     <details className="privacy-controls" open={openPanel === "controls"}>
@@ -196,24 +197,8 @@ function PrivacySummary({ view, openPanel, onOpenPanelChange, onMarkPrivate, onM
         <p>Protected values stay in this browser.</p>
         <button className="mark-visual-area" type="button" onClick={() => void onMarkVisualPrivate()}>Mark an area on this page private</button>
         {privateFields.length > 0 ? <div className="element-list">{privateFields.map((element) => <button type="button" key={element.id} onClick={() => void onMarkPrivate(element.id)}>Mark “{element.name}” private</button>)}</div> : <p>No editable fields are available to mark private.</p>}
+        <details className="nested-details"><summary>Local audit ({audit.length})</summary>{audit.length > 0 ? <ul className="audit-list">{audit.slice(0, 8).map((entry) => <li key={entry.id}><strong>{entry.action.replaceAll("_", " ")}</strong><span>{entry.status === "completed" ? "Completed" : "Paused"} · {entry.outcome.replaceAll("_", " ")}</span></li>)}</ul> : <p>No actions have been recorded on this device.</p>}</details>
       </div>
-    </details>
-  </section>;
-}
-
-function PageContext({ view, serverUrl, onServerUrlChange, onMarkPrivate, audit }: { view: ReadyView; serverUrl: string; onServerUrlChange: (value: string) => void; onMarkPrivate: (id: string) => Promise<void>; audit: AuditEntry[] }) {
-  const { context, page, redactionDetails, visualRedactionCount, screenshot, viewportError } = view;
-  return <section className="page-context">
-    <div className="page-heading"><span className="site-mark">{page.faviconUrl ? <img src={page.faviconUrl} alt="" /> : <span aria-hidden="true">{page.hostname.slice(0, 1).toUpperCase()}</span>}</span><div><strong>{page.title}</strong><span>{page.hostname}</span></div><span className="context-dot" title="Active page context is local" /></div>
-    <div className="context-meta"><span>{context.page.redactions.count} outbound redactions</span><span>{visualRedactionCount} visual masks</span></div>
-    <details className="privacy-drawer"><summary>Privacy controls and local context</summary>
-      <p className="drawer-note">Raw page content, cookies, screenshots, and original protected values stay in your browser.</p>
-      {redactionDetails.length > 0 && <ul className="redaction-list">{redactionDetails.map((detail, index) => <li key={`${detail.kind}-${detail.location}-${index}`}><strong>{piiLabel(detail.kind)}</strong><span>{detail.location}</span></li>)}</ul>}
-      <div className="element-list">{context.page.elements.filter((element) => element.role === "textbox" || element.role === "combobox").slice(0, 20).map((element) => <button type="button" key={element.id} onClick={() => void onMarkPrivate(element.id)}>Mark “{element.name}” private</button>)}</div>
-      {screenshot && <><img className="viewport" src={screenshot.dataUrl} alt="Exact locally redacted page view that will be sent to the reasoning server" /><p className="drawer-note">Only this protected view will be sent · receipt {screenshot.sha256.slice(0, 12)}…</p></>}{viewportError && <p className="drawer-error">{viewportError}</p>}
-      <details className="nested-details"><summary>View sanitized context</summary><pre>{JSON.stringify(context, null, 2)}</pre></details>
-      <details className="nested-details"><summary>Connection</summary><label>Reasoning server URL<input value={serverUrl} inputMode="url" onChange={(event) => onServerUrlChange(event.target.value)} /></label></details>
-      <details className="nested-details"><summary>Local audit ({audit.length})</summary><ul className="audit-list">{audit.slice(0, 8).map((entry) => <li key={entry.id}><strong>{entry.action.replaceAll("_", " ")}</strong><span>{entry.status === "completed" ? "Completed" : "Paused"} · {entry.outcome.replaceAll("_", " ")}</span></li>)}</ul></details>
     </details>
   </section>;
 }

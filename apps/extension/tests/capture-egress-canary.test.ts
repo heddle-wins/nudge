@@ -46,7 +46,10 @@ describe("captured-pixel egress canary", () => {
     expect(proposalMessageStart).toBeGreaterThan(-1);
     const proposalMessage = sidepanelSource.slice(proposalMessageStart, sidepanelSource.indexOf("if (!response?.ok)", proposalMessageStart));
     expect(proposalMessage).toContain("tabId: state.page.tabId");
+    expect(proposalMessage).toContain("payload: { task }");
     expect(proposalMessage).not.toContain("screenshot:");
+    expect(proposalMessage).not.toContain("redactionManifest:");
+    expect(proposalMessage).not.toContain("context:");
   });
 
   it("shows the service worker's fresh receipt with the resulting proposal", () => {

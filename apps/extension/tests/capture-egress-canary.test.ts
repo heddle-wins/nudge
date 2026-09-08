@@ -25,6 +25,8 @@ describe("captured-pixel egress canary", () => {
     expect(protectedViewportSource).toMatch(/screenshot: await createSafeScreenshot\(rendered\.result, viewport\)/);
     expect(backgroundSource).toMatch(/createProtectedViewport\(message\.tabId\)/);
     expect(backgroundSource).not.toContain("protectedScreenshots");
+    expect(backgroundSource).toContain("screenshot: result.screenshot, redactionPlan: result.redactionPlan");
+    expect(backgroundSource).toContain('if (import.meta.env.MODE === "fixture")');
   });
 
   it("regenerates a service-worker-owned receipt and context immediately before the reasoning request", () => {

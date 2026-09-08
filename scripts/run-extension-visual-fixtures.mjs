@@ -177,7 +177,25 @@ try {
     // It deliberately excludes network/server reasoning time.
     const protectedViewportMs = Math.round((performance.now() - protectedViewportStarted) * 100) / 100;
     const protectedViewport = protectedResult.result.value;
-    if (protectedViewport?.ok && !Array.isArray(protectedViewport.redactionPlan)) throw new Error(`Fixture protected viewport returned invalid geometry for ${fixture.id}`);
+    if (protectedViewport?.ok && (!Array.isArray(protectedViewport.redactionPlan) || typeof protectedViewport.screenshot?.dataUrl !== "string")) throw new Error(`Fixture protected viewport returned invalid geometry for ${fixture.id}`);
+    let protectedPixelProof;
+    if (protectedViewport?.ok) {
+      // Unlike the earlier renderer-only proof, this verifies the exact
+      // service-worker receipt created after DOM fusion, visual masking,
+      // residue scanning, and hashing. The redacted PNG stays in memory and
+      // the evidence artifact receives only aggregate counts.
+      const protectedPixelProofExpression = `globalThis.__nudgeFixturePixelProof(${JSON.stringify(protectedViewport.screenshot.dataUrl)}, ${JSON.stringify(dimensions)}, ${JSON.stringify(fixture.expected)})`;
+      const protectedPixelProofResult = await extensionPage.send("Runtime.evaluate", { expression: protectedPixelProofExpression, awaitPromise: true, returnByValue: true });
+      protectedPixelProof = protectedPixelProofResult.result.value;
+      if (!protectedPixelProof || !Number.isInteger(protectedPixelProof.expectedSensitivePixels) || !Number.isInteger(protectedPixelProof.redactedSensitivePixels) || !Number.isInteger(protectedPixelProof.residualSensitivePixels)) throw new Error(`Protected receipt pixel proof failed for ${fixture.id}`);
+      // A DOM field's painted text may sit within browser-capture coordinates
+      // that differ from the fixture's standalone pixel geometry. Keep those
+      // aggregate results as evidence, but use the bounded raster portrait as
+      // the hard receipt-level zero-residual gate for opaque-surface masking.
+      if (fixture.id === "synthetic-face-portrait" && protectedPixelProof.residualSensitivePixels !== 0) {
+        throw new Error("Protected receipt left labelled profile-image pixels.");
+      }
+    }
     if (fixture.id === "dom-credential-form") {
       const requestExpression = `(async () => {
         const [tab] = await chrome.tabs.query({ url: ${JSON.stringify(fixtureUrl)} });
@@ -222,7 +240,7 @@ try {
       };
     }
     const afterResidueMetrics = await sampleOffscreenMetrics();
-    runs.push({ id: fixture.id, surface: fixture.surface, expectedPolicy: fixture.expectedPolicy ?? "redact_then_evaluate", dimensions, extensionRoundTripMs, scan, residueScan, pixelProof, protectedViewportMs, protectedViewport: protectedViewport?.ok ? { status: "ready", redactionPlan: protectedViewport.redactionPlan, visualRegionCount: protectedViewport.visualRegionCount } : { status: "withheld", reason: typeof protectedViewport?.error === "string" ? protectedViewport.error : "Nudge could not create the protected fixture viewport." }, localResources: { afterScan: afterScanMetrics, afterResidue: afterResidueMetrics, cpuTime: "unavailable_from_chrome_devtools", gpuUtilization: "unavailable_from_chrome_devtools" }, residueScope: "Detector re-scan is not independent. pixelProof separately checks final rendered pixels against fixture ground truth; it covers visual detector masks plus renderer padding and excludes DOM fusion." });
+    runs.push({ id: fixture.id, surface: fixture.surface, expectedPolicy: fixture.expectedPolicy ?? "redact_then_evaluate", dimensions, extensionRoundTripMs, scan, residueScan, pixelProof, protectedViewportMs, protectedViewport: protectedViewport?.ok ? { status: "ready", redactionPlan: protectedViewport.redactionPlan, visualRegionCount: protectedViewport.visualRegionCount, protectedPixelProof } : { status: "withheld", reason: typeof protectedViewport?.error === "string" ? protectedViewport.error : "Nudge could not create the protected fixture viewport." }, localResources: { afterScan: afterScanMetrics, afterResidue: afterResidueMetrics, cpuTime: "unavailable_from_chrome_devtools", gpuUtilization: "unavailable_from_chrome_devtools" }, residueScope: "Detector re-scan is not independent. pixelProof checks renderer masks; protectedPixelProof, when a viewport is exportable, separately checks the exact service-worker receipt after DOM fusion." });
     page.close(); await devtools.send("Target.closeTarget", { targetId: target.targetId });
   }
   await mkdir(output, { recursive: true });

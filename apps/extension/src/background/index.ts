@@ -79,7 +79,10 @@ if (import.meta.env.MODE === "fixture") {
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (message?.type !== "NUDGE_FIXTURE_CREATE_PROTECTED_VIEWPORT" || typeof message.tabId !== "number") return;
     createProtectedViewport(message.tabId).then(
-      (result) => sendResponse({ ok: true, redactionPlan: result.redactionPlan, visualRegionCount: result.visualRegions.length }),
+      // This redacted receipt is fixture-only and is never compiled into the
+      // production worker. The runner checks its pixels in memory and writes
+      // only aggregate proof counts to its ignored evidence artifact.
+      (result) => sendResponse({ ok: true, screenshot: result.screenshot, redactionPlan: result.redactionPlan, visualRegionCount: result.visualRegions.length }),
       (error) => sendResponse({ ok: false, error: error instanceof Error ? error.message : "Nudge could not create the protected fixture viewport." })
     );
     return true;

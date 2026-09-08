@@ -116,6 +116,16 @@ try {
     const residueResult = await extensionPage.send("Runtime.evaluate", { expression: residueExpression, awaitPromise: true, returnByValue: true });
     const residueScan = residueResult.result.value?.scan;
     if (!residueScan || !Array.isArray(residueScan.regions)) throw new Error(`Residue scan failed for ${fixture.id}`);
+    // Ground truth comes from the manifest, not a second invocation of the
+    // detector. The verifier sees the redacted PNG only in extension memory
+    // and returns aggregate counts, never pixels.
+    const pixelProofExpression = `(async () => {
+      const redacted = await globalThis.__nudgeFixtureRender(${JSON.stringify(screenshot)}, ${JSON.stringify(masks)}, ${JSON.stringify(dimensions)});
+      return globalThis.__nudgeFixturePixelProof(redacted, ${JSON.stringify(dimensions)}, ${JSON.stringify(fixture.expected)});
+    })()`;
+    const pixelProofResult = await extensionPage.send("Runtime.evaluate", { expression: pixelProofExpression, awaitPromise: true, returnByValue: true });
+    const pixelProof = pixelProofResult.result.value;
+    if (!pixelProof || !Number.isInteger(pixelProof.expectedSensitivePixels) || !Number.isInteger(pixelProof.redactedSensitivePixels) || !Number.isInteger(pixelProof.residualSensitivePixels)) throw new Error(`Final-pixel proof failed for ${fixture.id}`);
     // Exercise the production protected-viewport capability too. The
     // fixture-only message returns geometry/policy only, never either image.
     const fixtureUrl = pathToFileURL(asset).toString();
@@ -128,7 +138,7 @@ try {
     const protectedViewport = protectedResult.result.value;
     if (protectedViewport?.ok && !Array.isArray(protectedViewport.redactionPlan)) throw new Error(`Fixture protected viewport returned invalid geometry for ${fixture.id}`);
     const afterResidueMetrics = await sampleOffscreenMetrics();
-    runs.push({ id: fixture.id, surface: fixture.surface, expectedPolicy: fixture.expectedPolicy ?? "redact_then_evaluate", dimensions, extensionRoundTripMs, scan, residueScan, protectedViewport: protectedViewport?.ok ? { status: "ready", redactionPlan: protectedViewport.redactionPlan, visualRegionCount: protectedViewport.visualRegionCount } : { status: "withheld", reason: typeof protectedViewport?.error === "string" ? protectedViewport.error : "Nudge could not create the protected fixture viewport." }, localResources: { afterScan: afterScanMetrics, afterResidue: afterResidueMetrics, cpuTime: "unavailable_from_chrome_devtools", gpuUtilization: "unavailable_from_chrome_devtools" }, residueScope: "Visual detector masks plus production renderer padding; excludes DOM fusion. Zero detections does not establish zero leaks." });
+    runs.push({ id: fixture.id, surface: fixture.surface, expectedPolicy: fixture.expectedPolicy ?? "redact_then_evaluate", dimensions, extensionRoundTripMs, scan, residueScan, pixelProof, protectedViewport: protectedViewport?.ok ? { status: "ready", redactionPlan: protectedViewport.redactionPlan, visualRegionCount: protectedViewport.visualRegionCount } : { status: "withheld", reason: typeof protectedViewport?.error === "string" ? protectedViewport.error : "Nudge could not create the protected fixture viewport." }, localResources: { afterScan: afterScanMetrics, afterResidue: afterResidueMetrics, cpuTime: "unavailable_from_chrome_devtools", gpuUtilization: "unavailable_from_chrome_devtools" }, residueScope: "Detector re-scan is not independent. pixelProof separately checks final rendered pixels against fixture ground truth; it covers visual detector masks plus renderer padding and excludes DOM fusion." });
     page.close(); await devtools.send("Target.closeTarget", { targetId: target.targetId });
   }
   await mkdir(output, { recursive: true });

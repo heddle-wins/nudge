@@ -76,3 +76,17 @@ reject ambiguous/inapplicable screenshots before any screenshot reaches a
 training set. Store reviewed datasets and screenshots outside the repository;
 record only their revision, licence, reviewer protocol, and aggregate metrics
 in the release evidence.
+
+Before training, validate the reviewed JSONL metadata (not screenshots) with:
+
+```bash
+npm run screen-state:validate-review -- \
+  --input /safe/local/nudge-screen-state-reviewed.jsonl \
+  --min-per-state 100
+```
+
+The validator rejects `needs_human_review` candidates, duplicate source
+records, hostname split leakage, missing reviewer/date/provenance/image hash,
+and absent taxonomy states. Its output contains aggregate counts only. The
+numeric minimum is a release decision, not evidence by itself; keep it modest
+only for pipeline smoke tests and raise it for the final held-out evaluation.

@@ -14,7 +14,8 @@
     "fixtures:rasterize": "node scripts/rasterize-visual-fixtures.mjs",
     "fixtures:vision": "node scripts/run-extension-visual-fixtures.mjs",
     "fixtures:vision-report": "node scripts/report-extension-vision-fixtures.mjs",
-    "screen-state:review-queue": "node scripts/build-screen-state-review-queue.mjs"
+    "screen-state:review-queue": "node scripts/build-screen-state-review-queue.mjs",
+    "screen-state:validate-review": "node scripts/validate-screen-state-training-set.mjs"
   },
   "devDependencies": {
     "turbo": "^2.3.3"

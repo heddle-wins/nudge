@@ -45,6 +45,12 @@ payment, or destructive-action policy.
 6. Pin source revision, licence, SHA-256, labels, preprocessing, and evaluation
    artifact in `apps/extension/public/models/MODELS.md` before bundling.
 
+`apps/extension/src/vision/screen-state-evaluation.ts` is the shared evaluator
+for the future held-out run. It emits a six-by-six confusion matrix plus
+per-state precision, recall, F1, accuracy, and macro F1; it also reports any
+taxonomy state missing from the held-out set. Do not report a macro-F1 release
+result while `missingExpectedStates` is non-empty.
+
 Until these gates pass, Nudge must describe its current local models accurately:
 YuNet provides face redaction and PP-OCR provides text recognition/redaction;
 there is **no task-trained screen-state model yet**.

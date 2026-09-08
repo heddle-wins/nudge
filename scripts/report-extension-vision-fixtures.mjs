@@ -67,6 +67,14 @@ const ocr = {
   recognizedRegions: run.fixtures.reduce((total, fixture) => total + (Number.isInteger(fixture.scan.ocrRecognizedRegionCount) ? fixture.scan.ocrRecognizedRegionCount : 0), 0),
   scope: "Count-only telemetry from the local offscreen document; it contains no recognized OCR strings."
 };
-const report = { schemaVersion: 1, sourceRun: relative(root, input), environment: run.environment ?? null, measurementScope: "Detector boxes only; excludes renderer padding, DOM fusion, and post-redaction OCR. Coverage is labelled rectangle coverage, not proof of leaked text or final screenshot safety.", protectedCoverageThreshold: 0.99, timing, ocr, totals: { ...totals, precision: totals.matchedMasks / Math.max(1, totals.matchedMasks + totals.falsePositiveMasks), recall: totals.protectedRegions / Math.max(1, totals.expectedRegions) }, fixtures };
+const heapSnapshots = run.fixtures.flatMap((fixture) => [fixture.localResources?.afterScan, fixture.localResources?.afterResidue]);
+const resources = {
+  maximumObservedJsHeapUsedBytes: Math.max(0, ...heapSnapshots.map((snapshot) => Number.isFinite(snapshot?.jsHeapUsedBytes) ? snapshot.jsHeapUsedBytes : 0)),
+  maximumObservedJsHeapTotalBytes: Math.max(0, ...heapSnapshots.map((snapshot) => Number.isFinite(snapshot?.jsHeapTotalBytes) ? snapshot.jsHeapTotalBytes : 0)),
+  cpuTime: "unavailable_from_chrome_devtools",
+  gpuUtilization: "unavailable_from_chrome_devtools",
+  scope: "Heap values are DevTools snapshots taken after local scan and residue scan, not a guaranteed process peak. CPU/GPU utilization is intentionally not inferred from wall-clock latency."
+};
+const report = { schemaVersion: 1, sourceRun: relative(root, input), environment: run.environment ?? null, measurementScope: "Detector boxes only; excludes renderer padding, DOM fusion, and post-redaction OCR. Coverage is labelled rectangle coverage, not proof of leaked text or final screenshot safety.", protectedCoverageThreshold: 0.99, timing, ocr, resources, totals: { ...totals, precision: totals.matchedMasks / Math.max(1, totals.matchedMasks + totals.falsePositiveMasks), recall: totals.protectedRegions / Math.max(1, totals.expectedRegions) }, fixtures };
 await writeFile(output, `${JSON.stringify(report, null, 2)}\n`);
 process.stdout.write(`Wrote metrics for ${fixtures.length} fixtures to ${output}\n`);

@@ -156,6 +156,21 @@ describe("privacy-core", () => {
     expect(JSON.stringify(inspection.context)).not.toContain('"x"');
   });
 
+  it("masks bounded opaque visual surfaces locally without adding their geometry to outbound context", () => {
+    const inspection = createPrivacyInspection({
+      url: "https://example.gov.in",
+      title: "Example",
+      elements: [],
+      opaqueVisualRegions: [{ x: 340, y: 24, width: 72, height: 72 }]
+    });
+
+    expect(inspection.visualRedactions).toContainEqual({
+      x: 340, y: 24, width: 72, height: 72, kind: "visual_content"
+    });
+    expect(inspection.context.page.redactions).toEqual({ count: 0, types: [] });
+    expect(JSON.stringify(inspection.context)).not.toContain('"x"');
+  });
+
   it("explains each outbound-context redaction using only a safe label", () => {
     const inspection = createPrivacyInspection({
       url: "https://example.gov.in",

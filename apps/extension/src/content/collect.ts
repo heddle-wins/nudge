@@ -133,33 +133,52 @@ export function collectRawPageContext(): RawPageContext {
   }
 
   const markedRegions = userMarkedVisualRegions();
-  // A CSS URL can paint arbitrary raster content even when there is no <img>
-  // node for the DOM inventory. Do not allow that page to export a screenshot
-  // based only on text/field inspection. Gradients are not URLs and remain
-  // inspectable layout decoration.
-  const hasCssUrlVisualContent = [...document.querySelectorAll<HTMLElement>("*")]
-    .some((element) => {
-      if (!isVisible(element)) return false;
-      const style = window.getComputedStyle(element);
-      if ([style.backgroundImage, style.borderImageSource, style.listStyleImage, style.maskImage]
-        .some((value) => /url\s*\(/i.test(value))) return true;
-      // Generated content is painted but absent from the text tree. It may be
-      // a label, an attr()-derived value, or a URL-backed image, so fail closed
-      // instead of attempting to infer its sensitivity from a DOM node.
-      return ["::before", "::after"].some((pseudo) => {
-        const content = window.getComputedStyle(element, pseudo).content;
-        return Boolean(content && content !== "none" && content !== "normal");
-      });
+  // Profile photos and other raster/generated surfaces cannot safely be
+  // reconstructed from the text tree. Record their exact viewport bounds and
+  // paint them fully opaque in the local renderer. This is conservative (for
+  // example, a non-sensitive illustration is masked too), but it means a
+  // profile image never depends on face-detector recall before a screenshot
+  // can leave the browser.
+  const opaqueVisualRegions: Array<{ x: number; y: number; width: number; height: number }> = [];
+  const opaqueRegionKeys = new Set<string>();
+  let opaqueVisualScanComplete = true;
+  const addOpaqueVisualRegion = (element: HTMLElement) => {
+    const bounds = boundsFor(element);
+    if (!bounds.width || !bounds.height) return;
+    const key = `${bounds.x}:${bounds.y}:${bounds.width}:${bounds.height}`;
+    if (opaqueRegionKeys.has(key)) return;
+    if (opaqueVisualRegions.length >= 2_000) {
+      opaqueVisualScanComplete = false;
+      return;
+    }
+    opaqueRegionKeys.add(key);
+    opaqueVisualRegions.push(bounds);
+  };
+  for (const element of document.querySelectorAll<HTMLElement>("img, canvas, embed, object, iframe, video")) {
+    if (isVisible(element)) addOpaqueVisualRegion(element);
+  }
+  for (const element of document.querySelectorAll<HTMLElement>("*")) {
+    if (!isVisible(element)) continue;
+    const style = window.getComputedStyle(element);
+    const hasCssImage = [style.backgroundImage, style.borderImageSource, style.listStyleImage, style.maskImage]
+      .some((value) => /url\s*\(/i.test(value));
+    const hasGeneratedContent = ["::before", "::after"].some((pseudo) => {
+      const content = window.getComputedStyle(element, pseudo).content;
+      return Boolean(content && content !== "none" && content !== "normal");
     });
+    if (hasCssImage || hasGeneratedContent) addOpaqueVisualRegion(element);
+  }
   return {
     url: window.location.href,
     title: document.title,
     elements,
     visualElements,
     viewport: { width: window.innerWidth, height: window.innerHeight },
-    visualScanComplete,
-    hasUninspectableVisualContent: hasCssUrlVisualContent || [...document.querySelectorAll<HTMLElement>("img, canvas, embed, object, iframe, video")]
-      .some(isVisible),
+    visualScanComplete: visualScanComplete && opaqueVisualScanComplete,
+    // Every detected opaque surface is bounded and painted locally. An
+    // excessive surface count fails closed through visualScanComplete above.
+    hasUninspectableVisualContent: false,
+    ...(opaqueVisualRegions.length ? { opaqueVisualRegions } : {}),
     ...(markedRegions.length ? { userMarkedVisualRegions: markedRegions } : {})
   };
 }

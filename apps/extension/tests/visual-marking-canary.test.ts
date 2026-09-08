@@ -13,4 +13,11 @@ describe("user-marked visual privacy canary", () => {
     expect(content).toMatch(/userMarkedVisualRegions: markedRegions/);
     expect(background).toMatch(/type: "NUDGE_BEGIN_VISUAL_PRIVACY_MARK"/);
   });
+
+  it("records bounded opaque visual surfaces so they can be locally masked before export", () => {
+    expect(content).toContain('const opaqueVisualRegions');
+    expect(content).toContain('"img, canvas, embed, object, iframe, video"');
+    expect(content).toContain('hasUninspectableVisualContent: false');
+    expect(content).toContain('opaqueVisualRegions }');
+  });
 });

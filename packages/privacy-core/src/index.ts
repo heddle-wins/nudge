@@ -24,6 +24,11 @@ export type RawPageContext = {
   hasUninspectableVisualContent?: boolean;
   /** Text and fields considered only when preparing a local viewport preview. */
   visualElements?: RawPageElement[];
+  /**
+   * Bounded raster/generated regions that cannot be semantically inspected.
+   * They stay local and are painted opaque before any screenshot can egress.
+   */
+  opaqueVisualRegions?: Array<{ x: number; y: number; width: number; height: number }>;
   /** User-drawn viewport rectangles. Geometry is local-only and never outbound. */
   userMarkedVisualRegions?: Array<{ x: number; y: number; width: number; height: number }>;
 };
@@ -68,7 +73,8 @@ const placeholder: Record<PiiKind, string> = {
   address: "[ADDRESS_REDACTED]",
   date_of_birth: "[DOB_REDACTED]",
   token: "[TOKEN_REDACTED]",
-  user_marked: "[PRIVATE_REDACTED]"
+  user_marked: "[PRIVATE_REDACTED]",
+  visual_content: "[VISUAL_CONTENT_REDACTED]"
 };
 
 const semanticRules: Array<{ kind: PiiKind; pattern: RegExp }> = [
@@ -232,7 +238,11 @@ export function createPrivacyInspection(raw: RawPageContext): PrivacyInspection 
         }
       }
     },
-    visualRedactions: [...toVisualRedactions([...(raw.visualElements ?? []), ...raw.elements]), ...manualRegions.map((region) => ({ ...region, kind: "user_marked" as const }))],
+    visualRedactions: [
+      ...toVisualRedactions([...(raw.visualElements ?? []), ...raw.elements]),
+      ...(raw.opaqueVisualRegions ?? []).map((region) => ({ ...region, kind: "visual_content" as const })),
+      ...manualRegions.map((region) => ({ ...region, kind: "user_marked" as const }))
+    ],
     redactionDetails
   };
 }

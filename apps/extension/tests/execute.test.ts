@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { executeApprovedAction } from "../src/content/execute";
 import { collectRawPageContext } from "../src/content/collect";
 import type { ExecutionRequest } from "@nudge/contracts";
-import { createOutboundSafeContext } from "@nudge/privacy-core";
+import { canExportRedactedViewport, createOutboundSafeContext } from "@nudge/privacy-core";
 
 function request(type: "click" | "select" | "type", role: "button" | "link" | "combobox" | "textbox", name: string, extra: Partial<ExecutionRequest["action"]> = {}): ExecutionRequest {
   return {
@@ -84,9 +84,12 @@ describe("approved browser executor", () => {
     expect(JSON.stringify(createOutboundSafeContext(collectRawPageContext()))).not.toContain("Scholarship");
   });
 
-  it("withholds screenshot export when CSS paints a URL-backed visual surface", () => {
+  it("locally masks a CSS URL-backed visual surface before screenshot export", () => {
     document.body.innerHTML = "<div style=\"background-image: url('https://example.test/private-card.png')\">Visible card</div>";
-    expect(collectRawPageContext().hasUninspectableVisualContent).toBe(true);
+    const raw = collectRawPageContext();
+    expect(raw.hasUninspectableVisualContent).toBe(false);
+    expect(raw.opaqueVisualRegions).toHaveLength(1);
+    expect(canExportRedactedViewport(raw)).toBe(true);
   });
 
   it("does not treat a CSS gradient as an uninspectable image surface", () => {
@@ -94,12 +97,15 @@ describe("approved browser executor", () => {
     expect(collectRawPageContext().hasUninspectableVisualContent).toBe(false);
   });
 
-  it("withholds screenshot export for visible CSS generated content", () => {
+  it("locally masks visible CSS generated content before screenshot export", () => {
     document.body.innerHTML = "<div>Visible card</div>";
     const ordinaryStyle = window.getComputedStyle(document.body);
     vi.mocked(window.getComputedStyle).mockImplementation((_element, pseudo) => pseudo === "::before"
       ? ({ ...ordinaryStyle, content: '"private generated label"' } as unknown as CSSStyleDeclaration)
       : ordinaryStyle);
-    expect(collectRawPageContext().hasUninspectableVisualContent).toBe(true);
+    const raw = collectRawPageContext();
+    expect(raw.hasUninspectableVisualContent).toBe(false);
+    expect(raw.opaqueVisualRegions).toHaveLength(1);
+    expect(canExportRedactedViewport(raw)).toBe(true);
   });
 });

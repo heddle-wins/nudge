@@ -8,6 +8,10 @@ vision pipeline. It is not a production accuracy claim.
 - YuNet INT8 ONNX finds face regions.
 - PP-OCRv4 detector and recognizer find screenshot text and classify recognized
   strings using the local PII policy.
+- Every bounded `<img>`, canvas, iframe, video, embedded/object surface, CSS
+  image, or generated-content surface is additionally painted fully opaque as
+  `visual_content`. This is deliberately broader than face detection: a profile
+  image remains protected if a detector misses its face.
 - The browser renders masks into a fresh PNG. Only that PNG can receive an
   outbound receipt.
 
@@ -69,11 +73,19 @@ it rather than treating it as committed evidence.
 | Profile avatar and debit card | 27,706 / 35,806 | OCR recognized/masked the payment text but did not cover the labelled avatar. |
 | Adversarial Devanagari spaced ID | 8,762 / 16,698 | OCR found text regions but did not recognize/mask the identifier. |
 
-The same run's production protected-viewport capability was eligible only for
-the DOM credential fixture: it fused the two semantic DOM masks with the visual
-mask and covered **2/2 credential regions with zero residual pixels**. Other
-fixture surfaces were correctly withheld because the browser could not prove
-that their complete visual content was safely exportable.
+The initial run's production protected-viewport capability was eligible only
+for the DOM credential fixture: it fused the two semantic DOM masks with the
+visual mask and covered **2/2 credential regions with zero residual pixels**.
+
+After adding opaque-surface masking, the controlled follow-up run at
+`artifacts/extension-visual-fixtures/2026-09-08T17-10-34.822Z/run.json` showed
+the active-DOM synthetic portrait as eligible too: its complete 380×380 image
+region appeared in the protected viewport's local redaction plan as
+`visual_content`, and final-pixel proof found **0 / 36,900** residual labelled
+face pixels. This is evidence that an inspectable DOM profile image is masked
+even when face detection is not the deciding control. Screenshot-only fixture
+surfaces that do not correspond to an inspectable active page remain withheld;
+that is expected and remains fail-closed.
 
 ## Protected-viewport duration
 

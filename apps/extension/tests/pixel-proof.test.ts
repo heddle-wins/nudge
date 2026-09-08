@@ -6,7 +6,7 @@ describe("rendered fixture pixel proof", () => {
     const pixels = new Uint8ClampedArray(4 * 4 * 4);
     for (let offset = 0; offset < pixels.length; offset += 4) pixels.set([16, 21, 29, 255], offset);
     pixels.set([255, 255, 255, 255], (2 * 4 + 2) * 4);
-    expect(proveExpectedPixelsRedacted(pixels, { width: 4, height: 4 }, [{ x: 1, y: 1, width: 2, height: 2 }])).toEqual({ expectedSensitivePixels: 4, redactedSensitivePixels: 3, residualSensitivePixels: 1 });
+    expect(proveExpectedPixelsRedacted(pixels, { width: 4, height: 4 }, [{ x: 1, y: 1, width: 2, height: 2 }])).toEqual({ expectedSensitivePixels: 4, redactedSensitivePixels: 3, residualSensitivePixels: 1, residualBounds: { x: 2, y: 2, width: 1, height: 1 } });
   });
 
   it("clips expected fixture geometry to the image", () => {

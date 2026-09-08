@@ -82,7 +82,7 @@ if (import.meta.env.MODE === "fixture") {
       // This redacted receipt is fixture-only and is never compiled into the
       // production worker. The runner checks its pixels in memory and writes
       // only aggregate proof counts to its ignored evidence artifact.
-      (result) => sendResponse({ ok: true, screenshot: result.screenshot, redactionPlan: result.redactionPlan, visualRegionCount: result.visualRegions.length }),
+      (result) => sendResponse({ ok: true, screenshot: result.screenshot, viewport: result.viewport, redactionPlan: result.redactionPlan, visualRegionCount: result.visualRegions.length }),
       (error) => sendResponse({ ok: false, error: error instanceof Error ? error.message : "Nudge could not create the protected fixture viewport." })
     );
     return true;

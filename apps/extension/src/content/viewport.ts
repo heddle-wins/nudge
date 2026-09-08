@@ -1,6 +1,46 @@
 import type { VisualRedactionRegion } from "@nudge/privacy-core";
 
 /**
+ * Paints known DOM-space privacy regions over the page just for a browser tab
+ * capture. Canvas redaction still runs afterward; this is a second, fail-closed
+ * layer for browser/compositor surfaces such as native input text.
+ */
+export async function applyTemporaryViewportMasks(regions: VisualRedactionRegion[], maskId: string): Promise<boolean> {
+  const existing = document.getElementById(maskId);
+  if (existing) return false;
+  const root = document.createElement("div");
+  root.id = maskId;
+  root.setAttribute("aria-hidden", "true");
+  Object.assign(root.style, {
+    position: "fixed", inset: "0", pointerEvents: "none", zIndex: "2147483647"
+  });
+  for (const region of regions) {
+    if (region.coordinateSpace === "image") continue;
+    const mask = document.createElement("div");
+    const padding = 4;
+    Object.assign(mask.style, {
+      position: "fixed",
+      left: `${Math.max(0, region.x - padding)}px`,
+      top: `${Math.max(0, region.y - padding)}px`,
+      width: `${Math.max(0, region.width + padding * 2)}px`,
+      height: `${Math.max(0, region.height + padding * 2)}px`,
+      background: "#10151d"
+    });
+    root.append(mask);
+  }
+  document.documentElement.append(root);
+  // Two frames make this a capture barrier even when a page has native form
+  // controls that Chrome composites separately from ordinary DOM paint.
+  await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+  return true;
+}
+
+/** Removes only the capture mask identified by this call; never page content. */
+export function removeTemporaryViewportMasks(maskId: string): void {
+  document.getElementById(maskId)?.remove();
+}
+
+/**
  * Receives a browser-captured image only inside the extension, masks all locally
  * detected regions, and returns the redacted image. The original data URL is never
  * returned to the side panel or included in the Nudge context contract.

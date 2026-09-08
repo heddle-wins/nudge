@@ -1,6 +1,6 @@
 import { canExportRedactedViewport, createPrivacyInspection, type RawPageContext } from "@nudge/privacy-core";
 import { collectRawPageContext } from "../content/collect";
-import { renderRedactedViewport } from "../content/viewport";
+import { applyTemporaryViewportMasks, removeTemporaryViewportMasks, renderRedactedViewport } from "../content/viewport";
 import { createSafeScreenshot } from "../safe-screenshot";
 import { detectVisualPrivacyOffscreen } from "./offscreen-client";
 import { assertNoVisualPrivacyResidue } from "./residue";
@@ -27,7 +27,23 @@ export async function createProtectedViewport(tabId: number, suppliedRawPage?: R
   const target = await chrome.tabs.get(tabId);
   const [visibleTab] = await chrome.tabs.query({ active: true, windowId: target.windowId });
   if (visibleTab?.id !== tabId) throw new Error("Keep this page active while Nudge prepares its protected view.");
-  const rawCapture = await chrome.tabs.captureVisibleTab(target.windowId, { format: "png" });
+  const captureMaskId = `nudge-capture-mask-${crypto.randomUUID()}`;
+  const [masked] = await chrome.scripting.executeScript({
+    target: { tabId },
+    func: applyTemporaryViewportMasks,
+    args: [inspection.visualRedactions, captureMaskId]
+  });
+  if (masked?.result !== true) throw new Error("Nudge could not apply its local capture privacy mask.");
+  let rawCapture: string;
+  try {
+    rawCapture = await chrome.tabs.captureVisibleTab(target.windowId, { format: "png" });
+  } finally {
+    await chrome.scripting.executeScript({
+      target: { tabId },
+      func: removeTemporaryViewportMasks,
+      args: [captureMaskId]
+    }).catch(() => undefined);
+  }
   const visualScan = await detectVisualPrivacyOffscreen(rawCapture);
   const visualRegions = visualScan.regions.map((region) => ({ ...region, coordinateSpace: "image" as const }));
   const redactionPlan = [...inspection.visualRedactions, ...visualRegions];
@@ -43,6 +59,10 @@ export async function createProtectedViewport(tabId: number, suppliedRawPage?: R
   assertNoVisualPrivacyResidue(residueScan.regions);
   return {
     screenshot: await createSafeScreenshot(rendered.result, viewport),
+    // Local geometry is returned only to extension callers. It never becomes
+    // part of the reasoning request; fixture mode records it to calibrate the
+    // DOM-to-capture renderer transform.
+    viewport,
     visualRegions,
     // Geometry stays local in production; the fixture-only receiver below may
     // inspect it without receiving image pixels.

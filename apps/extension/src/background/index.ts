@@ -37,7 +37,13 @@ async function inspectTab(tabId: number) {
     if (!injection?.result) throw new Error("Nudge could not read this page.");
 
     const inspection = createPrivacyInspection(injection.result);
-    return { ok: true, context: createOutboundSafeContext(injection.result), redactionDetails: inspection.redactionDetails, visualRedactionCount: inspection.visualRedactions.length };
+    return {
+      ok: true,
+      context: createOutboundSafeContext(injection.result),
+      redactionDetails: inspection.redactionDetails,
+      visualRedactionCount: inspection.visualRedactions.length,
+      visualRedactionTypes: [...new Set(inspection.visualRedactions.map((region) => region.kind))] satisfies PiiKind[]
+    };
   } catch (error) {
     return {
       ok: false,
@@ -116,7 +122,10 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
         ...response,
         screenshot: protectedViewport.screenshot,
         visualRedactionCount: (typeof response.visualRedactionCount === "number" ? response.visualRedactionCount : 0) + protectedViewport.visualRegions.length,
-        visualRedactionTypes: [...new Set(protectedViewport.visualRegions.map((region) => region.kind))] satisfies PiiKind[],
+        visualRedactionTypes: [...new Set([
+          ...(Array.isArray(response.visualRedactionTypes) ? response.visualRedactionTypes : []),
+          ...protectedViewport.visualRegions.map((region) => region.kind)
+        ])] satisfies PiiKind[],
         visualScan: protectedViewport.visualScan
       };
     } catch (error) {
@@ -258,13 +267,14 @@ async function requestNextAction(payload: unknown, serverUrl: unknown, tabId: un
   const context = createOutboundSafeContext(rawPage);
   const inspection = createPrivacyInspection(rawPage);
   const protectedViewport = await createProtectedViewport(tabId, rawPage);
+  const visualMaskTypes = [...new Set(protectedViewport.redactionPlan.map((region) => region.kind))] satisfies PiiKind[];
   const request = nextActionRequestSchema.parse({
     task: draft.task,
     context,
     redactionManifest: {
       count: context.page.redactions.count,
-      types: [...new Set([...context.page.redactions.types, ...protectedViewport.visualRegions.map((region) => region.kind)])],
-      visualMaskCount: protectedViewport.visualRegions.length,
+      types: [...new Set([...context.page.redactions.types, ...visualMaskTypes])],
+      visualMaskCount: protectedViewport.redactionPlan.length,
       renderer: "local-canvas-dom-v1"
     },
     screenshot: protectedViewport.screenshot
@@ -287,8 +297,8 @@ async function requestNextAction(payload: unknown, serverUrl: unknown, tabId: un
     protectedContext: {
       context,
       redactionDetails: inspection.redactionDetails,
-      visualRedactionCount: protectedViewport.visualRegions.length,
-      visualRedactionTypes: [...new Set(protectedViewport.visualRegions.map((region) => region.kind))] satisfies PiiKind[],
+      visualRedactionCount: protectedViewport.redactionPlan.length,
+      visualRedactionTypes: visualMaskTypes,
       visualScan: protectedViewport.visualScan,
       screenshot: protectedViewport.screenshot
     }

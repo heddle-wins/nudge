@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { executeApprovedAction } from "../src/content/execute";
 import { collectRawPageContext } from "../src/content/collect";
 import type { ExecutionRequest } from "@nudge/contracts";
@@ -17,7 +17,16 @@ beforeEach(() => {
   document.body.innerHTML = "";
   vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue({ x: 0, y: 0, top: 0, left: 0, right: 120, bottom: 30, width: 120, height: 30, toJSON: () => ({}) });
   HTMLElement.prototype.scrollIntoView = vi.fn();
+  const nativeGetComputedStyle = window.getComputedStyle.bind(window);
+  // jsdom logs a not-implemented warning for pseudo-element styles. Chrome
+  // supports them; model the ordinary no-generated-content case here and
+  // override it in the generated-content test below.
+  vi.spyOn(window, "getComputedStyle").mockImplementation((element, pseudo) => pseudo
+    ? ({ ...nativeGetComputedStyle(element), content: "none" } as unknown as CSSStyleDeclaration)
+    : nativeGetComputedStyle(element));
 });
+
+afterEach(() => vi.restoreAllMocks());
 
 describe("approved browser executor", () => {
   it("performs a re-resolved low-risk click", () => {
@@ -83,5 +92,14 @@ describe("approved browser executor", () => {
   it("does not treat a CSS gradient as an uninspectable image surface", () => {
     document.body.innerHTML = "<div style=\"background-image: linear-gradient(red, blue)\">Visible card</div>";
     expect(collectRawPageContext().hasUninspectableVisualContent).toBe(false);
+  });
+
+  it("withholds screenshot export for visible CSS generated content", () => {
+    document.body.innerHTML = "<div>Visible card</div>";
+    const ordinaryStyle = window.getComputedStyle(document.body);
+    vi.mocked(window.getComputedStyle).mockImplementation((_element, pseudo) => pseudo === "::before"
+      ? ({ ...ordinaryStyle, content: '"private generated label"' } as unknown as CSSStyleDeclaration)
+      : ordinaryStyle);
+    expect(collectRawPageContext().hasUninspectableVisualContent).toBe(true);
   });
 });

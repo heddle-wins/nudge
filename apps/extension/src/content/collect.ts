@@ -141,8 +141,15 @@ export function collectRawPageContext(): RawPageContext {
     .some((element) => {
       if (!isVisible(element)) return false;
       const style = window.getComputedStyle(element);
-      return [style.backgroundImage, style.borderImageSource, style.listStyleImage, style.maskImage]
-        .some((value) => /url\s*\(/i.test(value));
+      if ([style.backgroundImage, style.borderImageSource, style.listStyleImage, style.maskImage]
+        .some((value) => /url\s*\(/i.test(value))) return true;
+      // Generated content is painted but absent from the text tree. It may be
+      // a label, an attr()-derived value, or a URL-backed image, so fail closed
+      // instead of attempting to infer its sensitivity from a DOM node.
+      return ["::before", "::after"].some((pseudo) => {
+        const content = window.getComputedStyle(element, pseudo).content;
+        return Boolean(content && content !== "none" && content !== "normal");
+      });
     });
   return {
     url: window.location.href,

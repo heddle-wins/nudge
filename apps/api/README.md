@@ -20,6 +20,23 @@ Then open `http://127.0.0.1:8000/docs` or send a sanitized `POST` request to `/v
 pytest
 ```
 
+## Run the local demo stack with Docker
+
+From the repository root:
+
+```bash
+docker compose up --build
+```
+
+This starts the deterministic mock API at `http://127.0.0.1:8000` and the
+fictional SevaSetu portal at `http://127.0.0.1:4173`. Both ports are loopback
+only. The browser extension remains unpacked and local; it is not placed in a
+container. Stop the stack with `docker compose down`.
+
+Run `npm run smoke:compose` from the repository root to rebuild the stack,
+verify the health endpoint, make one sanitized mock reasoning request, verify
+the portal, and then remove the containers automatically.
+
 ## Deploy with OpenAI Responses API
 
 On the server, use a direct OpenAI provider with a server-only key:

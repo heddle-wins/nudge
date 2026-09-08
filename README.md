@@ -174,6 +174,23 @@ pnpm demo:portal
 
 Open `http://127.0.0.1:4173`, reload the unpacked extension, and follow the [Phase 5 demo kit](docs/phase-five-demo.md). For a `type` proposal, the model identifies a field only: you enter the exact text in Nudge’s local input, then confirm. That text is marked private immediately and never becomes reasoning context.
 
+To start the mock reasoning API and fictional portal together in containers:
+
+```bash
+docker compose up --build
+```
+
+The services bind only to `127.0.0.1`; load the unpacked extension separately
+in Chrome/Chromium. The default provider is deterministic `mock` and requires
+no key. For a hosted provider, put only server-side variables in an uncommitted
+Compose environment file; see [the API README](apps/api/README.md).
+
+To build, exercise the API and portal, and clean up the stack automatically:
+
+```bash
+npm run smoke:compose
+```
+
 ## Roadmap
 
 - [x] Capture SIH26171 and define the Nudge product boundary
@@ -184,7 +201,8 @@ Open `http://127.0.0.1:4173`, reload the unpacked extension, and follow the [Pha
 - [x] Add locally validated browser actions, consent flows, and a local audit timeline
 - [x] Demonstrate a complete controlled public-service workflow with visible redaction
 - [x] Add controlled privacy/action fixtures and a reproducible measurement protocol
-- [ ] Package the reproducible deployment and record the final fallback demo
+- [x] Package the reproducible local API/portal deployment
+- [ ] Record the final fallback demo
 
 ## Engineering commitments
 

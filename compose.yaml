@@ -1,0 +1,35 @@
+services:
+  api:
+    build:
+      context: ./apps/api
+    environment:
+      # The reproducible local default needs no secret. Override server-only
+      # provider variables in an uncommitted Compose environment file.
+      NUDGE_PROVIDER: ${NUDGE_PROVIDER:-mock}
+      NUDGE_MODEL: ${NUDGE_MODEL:-gpt-5-mini}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-https://api.openai.com/v1}
+      FASTROUTER_BASE_URL: ${FASTROUTER_BASE_URL:-https://api.fastrouter.ai/api/v1}
+      FASTROUTER_API_KEY: ${FASTROUTER_API_KEY:-}
+      QWEN_BASE_URL: ${QWEN_BASE_URL:-}
+      QWEN_API_KEY: ${QWEN_API_KEY:-}
+      NUDGE_ALLOWED_ORIGINS: ${NUDGE_ALLOWED_ORIGINS:-chrome-extension://*}
+    ports:
+      - "127.0.0.1:8000:8000"
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+
+  portal:
+    build:
+      context: ./demo/public-service-portal
+    ports:
+      - "127.0.0.1:4173:80"
+    read_only: true
+    tmpfs:
+      - /var/cache/nginx
+      - /var/run
+    security_opt:
+      - no-new-privileges:true

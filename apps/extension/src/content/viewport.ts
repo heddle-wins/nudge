@@ -11,22 +11,27 @@ export async function applyTemporaryViewportMasks(regions: VisualRedactionRegion
   const root = document.createElement("div");
   root.id = maskId;
   root.setAttribute("aria-hidden", "true");
-  Object.assign(root.style, {
-    position: "fixed", inset: "0", pointerEvents: "none", zIndex: "2147483647"
-  });
+  // A closed shadow root prevents ordinary page CSS from targeting the mask
+  // rectangles. The host's properties are inline !important so broad page
+  // rules such as `div { display: none !important }` cannot hide the layer.
+  const shadow = root.attachShadow({ mode: "closed" });
+  const rootStyle: Record<string, string> = {
+    all: "initial", position: "fixed", inset: "0", display: "block",
+    visibility: "visible", opacity: "1", pointerEvents: "none", zIndex: "2147483647"
+  };
+  for (const [property, value] of Object.entries(rootStyle)) root.style.setProperty(property, value, "important");
   for (const region of regions) {
     if (region.coordinateSpace === "image") continue;
     const mask = document.createElement("div");
     const padding = 4;
-    Object.assign(mask.style, {
-      position: "fixed",
-      left: `${Math.max(0, region.x - padding)}px`,
-      top: `${Math.max(0, region.y - padding)}px`,
-      width: `${Math.max(0, region.width + padding * 2)}px`,
-      height: `${Math.max(0, region.height + padding * 2)}px`,
+    const maskStyle: Record<string, string> = {
+      position: "fixed", display: "block", visibility: "visible", opacity: "1",
+      left: `${Math.max(0, region.x - padding)}px`, top: `${Math.max(0, region.y - padding)}px`,
+      width: `${Math.max(0, region.width + padding * 2)}px`, height: `${Math.max(0, region.height + padding * 2)}px`,
       background: "#10151d"
-    });
-    root.append(mask);
+    };
+    for (const [property, value] of Object.entries(maskStyle)) mask.style.setProperty(property, value, "important");
+    shadow.append(mask);
   }
   document.documentElement.append(root);
   // Two frames make this a capture barrier even when a page has native form
@@ -38,6 +43,12 @@ export async function applyTemporaryViewportMasks(regions: VisualRedactionRegion
 /** Removes only the capture mask identified by this call; never page content. */
 export function removeTemporaryViewportMasks(maskId: string): void {
   document.getElementById(maskId)?.remove();
+}
+
+/** Capture only while the locally-created mask host is still attached. */
+export function hasTemporaryViewportMasks(maskId: string): boolean {
+  const root = document.getElementById(maskId);
+  return Boolean(root?.isConnected && root.getAttribute("aria-hidden") === "true");
 }
 
 /**

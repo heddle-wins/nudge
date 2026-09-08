@@ -19,8 +19,10 @@ describe("captured-pixel egress canary", () => {
   it("routes a browser capture through the local canvas renderer before a receipt is created", () => {
     expect(protectedViewportSource).toMatch(/let rawCapture: string;\s+try \{\s+rawCapture = await chrome\.tabs\.captureVisibleTab/);
     expect(protectedViewportSource).toContain("applyTemporaryViewportMasks");
+    expect(protectedViewportSource).toContain("hasTemporaryViewportMasks");
     expect(protectedViewportSource).toContain("removeTemporaryViewportMasks");
     expect(protectedViewportSource).toContain("Nudge could not apply its local capture privacy mask.");
+    expect(protectedViewportSource).toContain("Nudge will not capture this page because its local privacy mask was removed.");
     expect(protectedViewportSource).toMatch(/await detectVisualPrivacyOffscreen\(rawCapture\)/);
     expect(protectedViewportSource).toMatch(/const redactionPlan = \[\.\.\.inspection\.visualRedactions, \.\.\.visualRegions\]/);
     expect(protectedViewportSource).toMatch(/args: \[rawCapture, redactionPlan, viewport\]/);

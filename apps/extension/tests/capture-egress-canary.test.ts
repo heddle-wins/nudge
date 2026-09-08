@@ -56,6 +56,8 @@ describe("captured-pixel egress canary", () => {
     expect(sidepanelSource).toContain("screenshot: protectedContext?.screenshot");
     expect(sidepanelSource).toContain("Exact locally redacted page view sent with this proposal");
     expect(sidepanelSource).toContain("Protected page view sent · receipt");
+    expect(sidepanelSource).toContain("Preparing a fresh protected view locally…");
+    expect(sidepanelSource).toContain("Redacting and checking the current view before it leaves this browser…");
   });
 
   it("keeps local proof surfaces in the active privacy panel", () => {

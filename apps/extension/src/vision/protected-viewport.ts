@@ -1,6 +1,6 @@
 import { canExportRedactedViewport, createPrivacyInspection, type RawPageContext } from "@nudge/privacy-core";
 import { collectRawPageContext } from "../content/collect";
-import { applyTemporaryViewportMasks, removeTemporaryViewportMasks, renderRedactedViewport } from "../content/viewport";
+import { applyTemporaryViewportMasks, hasTemporaryViewportMasks, removeTemporaryViewportMasks, renderRedactedViewport } from "../content/viewport";
 import { createSafeScreenshot } from "../safe-screenshot";
 import { detectVisualPrivacyOffscreen } from "./offscreen-client";
 import { assertNoVisualPrivacyResidue } from "./residue";
@@ -34,6 +34,15 @@ export async function createProtectedViewport(tabId: number, suppliedRawPage?: R
     args: [inspection.visualRedactions, captureMaskId]
   });
   if (masked?.result !== true) throw new Error("Nudge could not apply its local capture privacy mask.");
+  const [maskStillPresent] = await chrome.scripting.executeScript({
+    target: { tabId },
+    func: hasTemporaryViewportMasks,
+    args: [captureMaskId]
+  });
+  if (maskStillPresent?.result !== true) {
+    await chrome.scripting.executeScript({ target: { tabId }, func: removeTemporaryViewportMasks, args: [captureMaskId] }).catch(() => undefined);
+    throw new Error("Nudge will not capture this page because its local privacy mask was removed.");
+  }
   let rawCapture: string;
   try {
     rawCapture = await chrome.tabs.captureVisibleTab(target.windowId, { format: "png" });

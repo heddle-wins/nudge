@@ -27,6 +27,14 @@ chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch(consol
 // by the UI or another extension message sender.
 const protectedScreenshots = new Map<number, { origin: string; screenshot: SafeScreenshot }>();
 
+// A receipt belongs to one inspected document state. Remove it as soon as the
+// tab begins navigating (including same-origin SPA URL changes), rather than
+// allowing a short side-panel refresh race to reuse an older preview.
+chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
+  if (changeInfo.status === "loading" || changeInfo.url) protectedScreenshots.delete(tabId);
+});
+chrome.tabs.onRemoved.addListener((tabId) => protectedScreenshots.delete(tabId));
+
 async function inspectTab(tabId: number) {
   try {
     const response = await chrome.tabs.sendMessage(tabId, { type: "NUDGE_GET_SANITIZED_CONTEXT" });

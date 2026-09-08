@@ -1,4 +1,4 @@
-import { canExportRedactedViewport, createOutboundSafeContext, createPrivacyInspection } from "@nudge/privacy-core";
+import { createOutboundSafeContext, createPrivacyInspection } from "@nudge/privacy-core";
 import {
   executionRequestSchema,
   executionResultSchema,
@@ -15,12 +15,10 @@ import {
 } from "@nudge/contracts";
 import { beginVisualPrivacyMark, collectRawPageContext, markElementPrivate } from "../content/collect";
 import { executeApprovedAction } from "../content/execute";
-import { renderRedactedViewport } from "../content/viewport";
 import { evaluateExecutionPolicy } from "../execution-policy";
-import { createSafeScreenshot } from "../safe-screenshot";
 import { browserSupportsWebGpu } from "../vision/runtime";
 import { detectVisualPrivacyOffscreen } from "../vision/offscreen-client";
-import { assertNoVisualPrivacyResidue } from "../vision/residue";
+import { createProtectedViewport } from "../vision/protected-viewport";
 
 chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch(console.error);
 
@@ -54,48 +52,6 @@ async function inspectTab(tabId: number) {
         : "Nudge cannot inspect this page. Browser-internal pages are not supported."
     };
   }
-}
-
-async function collectInspection(tabId: number) {
-  const [injection] = await chrome.scripting.executeScript({
-    target: { tabId },
-    func: collectRawPageContext
-  });
-  if (!injection?.result) throw new Error("Nudge could not read this page.");
-  return {
-    inspection: createPrivacyInspection(injection.result),
-    viewport: injection.result.viewport,
-    canExportViewport: canExportRedactedViewport(injection.result)
-  };
-}
-
-async function createRedactedViewport(tabId: number) {
-  const { inspection, viewport, canExportViewport } = await collectInspection(tabId);
-  if (!canExportViewport) {
-    throw new Error("Nudge will not export a visual preview for this page because all visible content cannot be safely redacted yet.");
-  }
-  const target = (await chrome.tabs.get(tabId));
-  const rawCapture = await chrome.tabs.captureVisibleTab(target.windowId, { format: "png" });
-  const visualScan = await detectVisualPrivacyOffscreen(rawCapture);
-  const visualRegions = visualScan.regions.map((region) => ({ ...region, coordinateSpace: "image" as const }));
-  const [rendered] = await chrome.scripting.executeScript({
-    target: { tabId },
-    func: renderRedactedViewport,
-    args: [rawCapture, [...inspection.visualRedactions, ...visualRegions], viewport ?? { width: target.width ?? 1, height: target.height ?? 1 }]
-  });
-  if (typeof rendered?.result !== "string") throw new Error("Nudge could not render the protected viewport.");
-  // Re-run the local face/OCR pipeline against the exact redacted pixels. This
-  // is the last gate before the image can become a SafeScreenshot.
-  const residueScan = await detectVisualPrivacyOffscreen(rendered.result);
-  assertNoVisualPrivacyResidue(residueScan.regions);
-  return {
-    screenshot: await createSafeScreenshot(rendered.result, {
-      width: viewport?.width ?? target.width ?? 1,
-      height: viewport?.height ?? target.height ?? 1
-    }),
-    visualRegions,
-    visualScan: { scanMs: visualScan.scanMs, modelLoadMs: visualScan.modelLoadMs, backends: visualScan.backends, residueScanMs: residueScan.scanMs }
-  };
 }
 
 // This receiver is compiled only by the controlled fixture build. It exercises
@@ -144,7 +100,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (!response.ok || !message.includeViewport) return response;
     protectedScreenshots.delete(message.tabId);
     try {
-      const protectedViewport = await createRedactedViewport(message.tabId);
+      const protectedViewport = await createProtectedViewport(message.tabId);
       protectedScreenshots.set(message.tabId, { origin: response.context.page.urlOrigin, screenshot: protectedViewport.screenshot });
       return {
         ...response,

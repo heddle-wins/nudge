@@ -43,6 +43,15 @@
       ]
     },
     {
+      "id": "synthetic-face-portrait",
+      "asset": "synthetic-face-portrait.html",
+      "surface": "profile_image",
+      "dimensions": { "width": 800, "height": 450 },
+      "expected": [
+        { "kind": "face", "x": 310, "y": 120, "width": 180, "height": 205 }
+      ]
+    },
+    {
       "id": "adversarial-devenagari-spaced-id",
       "asset": "adversarial-devenagari-spaced-id.svg",
       "surface": "screenshot_image",

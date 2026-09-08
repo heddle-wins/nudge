@@ -165,3 +165,15 @@ export const executionResultSchema = z.object({
 }).strict();
 
 export type ExecutionResult = z.infer<typeof executionResultSchema>;
+
+/** The advisory, local-only screen-state taxonomy used by the SIH vision evaluation. */
+export const screenStateValues = [
+  "ordinary_workflow",
+  "credential_or_auth",
+  "payment_or_financial",
+  "mfa_or_captcha",
+  "result_or_confirmation",
+  "unknown"
+] as const;
+export const screenStateSchema = z.enum(screenStateValues);
+export type ScreenState = z.infer<typeof screenStateSchema>;

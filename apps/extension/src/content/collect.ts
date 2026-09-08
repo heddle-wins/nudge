@@ -133,6 +133,17 @@ export function collectRawPageContext(): RawPageContext {
   }
 
   const markedRegions = userMarkedVisualRegions();
+  // A CSS URL can paint arbitrary raster content even when there is no <img>
+  // node for the DOM inventory. Do not allow that page to export a screenshot
+  // based only on text/field inspection. Gradients are not URLs and remain
+  // inspectable layout decoration.
+  const hasCssUrlVisualContent = [...document.querySelectorAll<HTMLElement>("*")]
+    .some((element) => {
+      if (!isVisible(element)) return false;
+      const style = window.getComputedStyle(element);
+      return [style.backgroundImage, style.borderImageSource, style.listStyleImage, style.maskImage]
+        .some((value) => /url\s*\(/i.test(value));
+    });
   return {
     url: window.location.href,
     title: document.title,
@@ -140,7 +151,7 @@ export function collectRawPageContext(): RawPageContext {
     visualElements,
     viewport: { width: window.innerWidth, height: window.innerHeight },
     visualScanComplete,
-    hasUninspectableVisualContent: [...document.querySelectorAll<HTMLElement>("img, canvas, embed, object, iframe")]
+    hasUninspectableVisualContent: hasCssUrlVisualContent || [...document.querySelectorAll<HTMLElement>("img, canvas, embed, object, iframe, video")]
       .some(isVisible),
     ...(markedRegions.length ? { userMarkedVisualRegions: markedRegions } : {})
   };

@@ -74,4 +74,14 @@ describe("approved browser executor", () => {
     expect(input.getAttribute("data-nudge-private")).toBe("true");
     expect(JSON.stringify(createOutboundSafeContext(collectRawPageContext()))).not.toContain("Scholarship");
   });
+
+  it("withholds screenshot export when CSS paints a URL-backed visual surface", () => {
+    document.body.innerHTML = "<div style=\"background-image: url('https://example.test/private-card.png')\">Visible card</div>";
+    expect(collectRawPageContext().hasUninspectableVisualContent).toBe(true);
+  });
+
+  it("does not treat a CSS gradient as an uninspectable image surface", () => {
+    document.body.innerHTML = "<div style=\"background-image: linear-gradient(red, blue)\">Visible card</div>";
+    expect(collectRawPageContext().hasUninspectableVisualContent).toBe(false);
+  });
 });

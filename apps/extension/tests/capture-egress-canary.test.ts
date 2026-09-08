@@ -61,6 +61,8 @@ describe("captured-pixel egress canary", () => {
   it("keeps local proof surfaces in the active privacy panel", () => {
     expect(sidepanelSource).toContain("View sanitized context");
     expect(sidepanelSource).toContain("Local audit ({audit.length})");
+    expect(sidepanelSource).toContain("Reasoning connection");
+    expect(sidepanelSource).toContain("Reasoning server URL");
     expect(sidepanelSource).not.toContain("function PageContext(");
   });
 });

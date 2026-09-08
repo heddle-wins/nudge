@@ -1,23 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { nextActionDraftSchema } from "@nudge/contracts";
 
-const draft = {
-  task: "Find my application status",
-  context: {
-    schemaVersion: "1.0",
-    source: "nudge-extension",
-    page: {
-      urlOrigin: "https://service.example.gov.in",
-      title: "Application tracking",
-      elements: [],
-      redactions: { count: 0, types: [] }
-    }
-  },
-  redactionManifest: { count: 0, types: [], visualMaskCount: 0, renderer: "local-canvas-dom-v1" }
-};
+const draft = { task: "Find my application status" };
 
 describe("proposal egress draft", () => {
-  it("rejects a screenshot supplied by the UI before the service-worker request is assembled", () => {
+  it("accepts only a task from the UI before the service-worker request is assembled", () => {
     const forgedUiScreenshot = {
       kind: "nudge-redacted-screenshot",
       mimeType: "image/png",
@@ -29,6 +16,8 @@ describe("proposal egress draft", () => {
       height: 50
     };
     expect(nextActionDraftSchema.safeParse({ ...draft, screenshot: forgedUiScreenshot }).success).toBe(false);
+    expect(nextActionDraftSchema.safeParse({ ...draft, context: { forged: true } }).success).toBe(false);
+    expect(nextActionDraftSchema.safeParse({ ...draft, redactionManifest: { forged: true } }).success).toBe(false);
     expect(nextActionDraftSchema.safeParse(draft).success).toBe(true);
   });
 });

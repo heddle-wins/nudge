@@ -111,8 +111,14 @@ export const nextActionRequestSchema = z.object({
 export type NextActionRequest = z.infer<typeof nextActionRequestSchema>;
 export type VisionReasoningRequest = NextActionRequest;
 
-/** UI-to-service-worker request. A protected image receipt is service-worker-owned. */
-export const nextActionDraftSchema = nextActionRequestSchema.omit({ screenshot: true });
+/**
+ * UI-to-service-worker input. The worker collects the current local context,
+ * redaction manifest, and protected image itself; none may be supplied by the
+ * side panel or another extension message sender.
+ */
+export const nextActionDraftSchema = z.object({
+  task: z.string().trim().min(1).max(1_000)
+}).strict();
 export type NextActionDraft = z.infer<typeof nextActionDraftSchema>;
 
 export const nextActionResponseSchema = z.object({

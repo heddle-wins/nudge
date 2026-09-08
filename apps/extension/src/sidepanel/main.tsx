@@ -189,10 +189,16 @@ function App() {
 
 function PrivacySummary({ view, audit, serverUrl, onServerUrlChange, openPanel, onOpenPanelChange, onMarkPrivate, onMarkVisualPrivate }: { view: ReadyView; audit: AuditEntry[]; serverUrl: string; onServerUrlChange: (value: string) => void; openPanel: "redactions" | "controls" | null; onOpenPanelChange: (panel: "redactions" | "controls" | null) => void; onMarkPrivate: (id: string) => Promise<void>; onMarkVisualPrivate: () => Promise<void> }) {
   const privateFields = view.context.page.elements.filter((element) => element.role === "textbox" || element.role === "combobox").slice(0, 20);
-  const redactions = view.context.page.redactions.count + view.visualRedactionCount;
+  const sensitiveItems = view.context.page.redactions.count;
+  const visualMasks = view.visualRedactionCount;
+  const privacySummary = sensitiveItems && visualMasks
+    ? `${sensitiveItems} ${sensitiveItems === 1 ? "sensitive item" : "sensitive items"} · ${visualMasks} ${visualMasks === 1 ? "visual mask" : "visual masks"}`
+    : sensitiveItems
+      ? `${sensitiveItems} ${sensitiveItems === 1 ? "sensitive item" : "sensitive items"} redacted`
+      : `${visualMasks} ${visualMasks === 1 ? "visual mask" : "visual masks"}`;
   return <section className="privacy-summary" aria-label="Privacy controls">
     <details className="redaction-details" open={openPanel === "redactions"}>
-      <summary onClick={(event) => { event.preventDefault(); onOpenPanelChange(openPanel === "redactions" ? null : "redactions"); }}><ShieldCheck /><span>{redactions} {redactions === 1 ? "item" : "items"} redacted</span><NavArrowDown /></summary>
+      <summary onClick={(event) => { event.preventDefault(); onOpenPanelChange(openPanel === "redactions" ? null : "redactions"); }}><ShieldCheck /><span>{privacySummary}</span><NavArrowDown /></summary>
       <div className="redaction-details-panel">
         {view.redactionDetails.length > 0 ? <ul>{view.redactionDetails.map((detail, index) => <li key={`${detail.kind}-${detail.location}-${index}`}><strong>{piiLabel(detail.kind)}</strong><span>{detail.location}</span></li>)}</ul> : <p>No DOM-sensitive values were found on this page.</p>}
         {view.visualRedactionCount > 0 && <p className="visual-scan-summary">{view.visualRedactionCount} visual mask{view.visualRedactionCount === 1 ? "" : "s"}: {view.visualRedactionTypes.map(piiLabel).join(", ") || "local privacy detection"}.</p>}

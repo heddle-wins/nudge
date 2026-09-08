@@ -124,6 +124,17 @@ const resources = {
   gpuUtilization: "unavailable_from_chrome_devtools",
   scope: "Heap values are DevTools snapshots taken after local scan and residue scan, not a guaranteed process peak. CPU/GPU utilization is intentionally not inferred from wall-clock latency."
 };
-const report = { schemaVersion: 1, sourceRun: relative(root, input), environment: run.environment ?? null, measurementScope: "Detector boxes only; excludes post-redaction OCR. Coverage is labelled rectangle coverage, not proof of leaked text or final screenshot safety.", protectedCoverageThreshold: 0.99, timing, ocr, resources, totals, fixtures, finalRenderer, protectedViewport };
+const egress = run.egress?.status === "verified"
+  ? {
+      status: "verified",
+      requestCount: run.egress.requestCount,
+      receiptSha256: run.egress.receiptSha256,
+      dimensions: { width: run.egress.width, height: run.egress.height },
+      rawFixtureValuesAbsent: run.egress.rawFixtureValuesAbsent === true,
+      exactWorkerReceiptMatched: run.egress.exactWorkerReceiptMatched === true,
+      scope: "One controlled DOM-credential fixture sends a worker-created request to a local schema-valid fixture server. The server checks direct source values are absent and the returned UI receipt hash equals the request receipt hash. It retains no payload/image and relies on final-pixel proof for rendered-pixel coverage."
+    }
+  : { status: "not_recorded", scope: "This source run predates the controlled worker-to-server egress check." };
+const report = { schemaVersion: 1, sourceRun: relative(root, input), environment: run.environment ?? null, measurementScope: "Detector boxes only; excludes post-redaction OCR. Coverage is labelled rectangle coverage, not proof of leaked text or final screenshot safety.", protectedCoverageThreshold: 0.99, timing, ocr, resources, egress, totals, fixtures, finalRenderer, protectedViewport };
 await writeFile(output, `${JSON.stringify(report, null, 2)}\n`);
 process.stdout.write(`Wrote metrics for ${fixtures.length} fixtures to ${output}\n`);

@@ -12,6 +12,10 @@ vision pipeline. It is not a production accuracy claim.
   image, or generated-content surface is additionally painted fully opaque as
   `visual_content`. This is deliberately broader than face detection: a profile
   image remains protected if a detector misses its face.
+- Before a browser capture, known DOM-space masks are also painted temporarily
+  over the live viewport and removed immediately afterward. The final canvas
+  renderer applies the same plan again. If that pre-capture mask cannot be
+  painted, Nudge withholds the screenshot rather than capturing it.
 - The browser renders masks into a fresh PNG. Only that PNG can receive an
   outbound receipt.
 
@@ -79,11 +83,13 @@ it rather than treating it as committed evidence.
 
 The initial run's production protected-viewport capability was eligible only
 for the DOM credential fixture and fused the two semantic DOM masks with the
-visual mask. A later exact-receipt pixel check reported 276 residual pixels
-inside its broad fixture rectangles; the browser capture's vertical coordinate
-space does not exactly align with that standalone fixture geometry. Treat the
-DOM case as a control-flow/egress check, not a zero-pixel release claim, until
-its coordinate fixture is recalibrated.
+visual mask. An exact-receipt check later exposed 276 residual email-glyph
+pixels despite the final canvas plan. The current capture guard was added in
+response: it paints DOM-space masks before `captureVisibleTab`, then removes
+them in a `finally` block. The controlled run at
+`artifacts/extension-visual-fixtures/2026-09-08T17-22-14.664Z/run.json` proves
+the resulting service-worker receipt has **0 / 30,240** residual labelled
+credential pixels.
 
 After adding opaque-surface masking, the controlled follow-up run at
 `artifacts/extension-visual-fixtures/2026-09-08T17-10-34.822Z/run.json` showed

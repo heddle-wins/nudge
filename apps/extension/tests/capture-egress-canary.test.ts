@@ -17,7 +17,10 @@ const protectedViewportSource = readFileSync(
 
 describe("captured-pixel egress canary", () => {
   it("routes a browser capture through the local canvas renderer before a receipt is created", () => {
-    expect(protectedViewportSource).toMatch(/const rawCapture = await chrome\.tabs\.captureVisibleTab/);
+    expect(protectedViewportSource).toMatch(/let rawCapture: string;\s+try \{\s+rawCapture = await chrome\.tabs\.captureVisibleTab/);
+    expect(protectedViewportSource).toContain("applyTemporaryViewportMasks");
+    expect(protectedViewportSource).toContain("removeTemporaryViewportMasks");
+    expect(protectedViewportSource).toContain("Nudge could not apply its local capture privacy mask.");
     expect(protectedViewportSource).toMatch(/await detectVisualPrivacyOffscreen\(rawCapture\)/);
     expect(protectedViewportSource).toMatch(/const redactionPlan = \[\.\.\.inspection\.visualRedactions, \.\.\.visualRegions\]/);
     expect(protectedViewportSource).toMatch(/args: \[rawCapture, redactionPlan, viewport\]/);
@@ -25,7 +28,7 @@ describe("captured-pixel egress canary", () => {
     expect(protectedViewportSource).toMatch(/screenshot: await createSafeScreenshot\(rendered\.result, viewport\)/);
     expect(backgroundSource).toMatch(/createProtectedViewport\(message\.tabId\)/);
     expect(backgroundSource).not.toContain("protectedScreenshots");
-    expect(backgroundSource).toContain("screenshot: result.screenshot, redactionPlan: result.redactionPlan");
+    expect(backgroundSource).toContain("screenshot: result.screenshot, viewport: result.viewport, redactionPlan: result.redactionPlan");
     expect(backgroundSource).toContain('if (import.meta.env.MODE === "fixture")');
   });
 

@@ -19,7 +19,8 @@ describe("captured-pixel egress canary", () => {
   it("routes a browser capture through the local canvas renderer before a receipt is created", () => {
     expect(protectedViewportSource).toMatch(/const rawCapture = await chrome\.tabs\.captureVisibleTab/);
     expect(protectedViewportSource).toMatch(/await detectVisualPrivacyOffscreen\(rawCapture\)/);
-    expect(protectedViewportSource).toMatch(/args: \[rawCapture, \[\.\.\.inspection\.visualRedactions, \.\.\.visualRegions\], viewport\]/);
+    expect(protectedViewportSource).toMatch(/const redactionPlan = \[\.\.\.inspection\.visualRedactions, \.\.\.visualRegions\]/);
+    expect(protectedViewportSource).toMatch(/args: \[rawCapture, redactionPlan, viewport\]/);
     expect(protectedViewportSource).toMatch(/const residueScan = await detectVisualPrivacyOffscreen\(rendered\.result\);\s+assertNoVisualPrivacyResidue\(residueScan\.regions\)/);
     expect(protectedViewportSource).toMatch(/screenshot: await createSafeScreenshot\(rendered\.result, viewport\)/);
     expect(backgroundSource).toMatch(/createProtectedViewport\(message\.tabId\)/);

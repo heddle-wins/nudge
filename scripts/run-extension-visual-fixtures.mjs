@@ -116,8 +116,19 @@ try {
     const residueResult = await extensionPage.send("Runtime.evaluate", { expression: residueExpression, awaitPromise: true, returnByValue: true });
     const residueScan = residueResult.result.value?.scan;
     if (!residueScan || !Array.isArray(residueScan.regions)) throw new Error(`Residue scan failed for ${fixture.id}`);
+    // Exercise the production protected-viewport capability too. The
+    // fixture-only message returns geometry/policy only, never either image.
+    const fixtureUrl = pathToFileURL(asset).toString();
+    const protectedExpression = `(async () => {
+      const [tab] = await chrome.tabs.query({ url: ${JSON.stringify(fixtureUrl)} });
+      if (!tab?.id) return { ok: false, error: "Fixture tab was not found." };
+      return chrome.runtime.sendMessage({ type: "NUDGE_FIXTURE_CREATE_PROTECTED_VIEWPORT", tabId: tab.id });
+    })()`;
+    const protectedResult = await extensionPage.send("Runtime.evaluate", { expression: protectedExpression, awaitPromise: true, returnByValue: true });
+    const protectedViewport = protectedResult.result.value;
+    if (protectedViewport?.ok && !Array.isArray(protectedViewport.redactionPlan)) throw new Error(`Fixture protected viewport returned invalid geometry for ${fixture.id}`);
     const afterResidueMetrics = await sampleOffscreenMetrics();
-    runs.push({ id: fixture.id, surface: fixture.surface, expectedPolicy: fixture.expectedPolicy ?? "redact_then_evaluate", dimensions, extensionRoundTripMs, scan, residueScan, localResources: { afterScan: afterScanMetrics, afterResidue: afterResidueMetrics, cpuTime: "unavailable_from_chrome_devtools", gpuUtilization: "unavailable_from_chrome_devtools" }, residueScope: "Visual detector masks plus production renderer padding; excludes DOM fusion. Zero detections does not establish zero leaks." });
+    runs.push({ id: fixture.id, surface: fixture.surface, expectedPolicy: fixture.expectedPolicy ?? "redact_then_evaluate", dimensions, extensionRoundTripMs, scan, residueScan, protectedViewport: protectedViewport?.ok ? { status: "ready", redactionPlan: protectedViewport.redactionPlan, visualRegionCount: protectedViewport.visualRegionCount } : { status: "withheld", reason: typeof protectedViewport?.error === "string" ? protectedViewport.error : "Nudge could not create the protected fixture viewport." }, localResources: { afterScan: afterScanMetrics, afterResidue: afterResidueMetrics, cpuTime: "unavailable_from_chrome_devtools", gpuUtilization: "unavailable_from_chrome_devtools" }, residueScope: "Visual detector masks plus production renderer padding; excludes DOM fusion. Zero detections does not establish zero leaks." });
     page.close(); await devtools.send("Target.closeTarget", { targetId: target.targetId });
   }
   await mkdir(output, { recursive: true });

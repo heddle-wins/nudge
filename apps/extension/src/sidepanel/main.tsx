@@ -150,7 +150,7 @@ function App() {
   const isReady = state.status === "ready";
   return <main className="app-shell">
     {openPrivacyPanel && <button className="privacy-backdrop" type="button" aria-label="Close privacy panel" onClick={() => setOpenPrivacyPanel(null)} />}
-    {state.status === "ready" && <PrivacySummary view={state} audit={audit} openPanel={openPrivacyPanel} onOpenPanelChange={setOpenPrivacyPanel} onMarkPrivate={markPrivate} onMarkVisualPrivate={markVisualPrivate} />}
+    {state.status === "ready" && <PrivacySummary view={state} audit={audit} serverUrl={serverUrl} onServerUrlChange={setServerUrl} openPanel={openPrivacyPanel} onOpenPanelChange={setOpenPrivacyPanel} onMarkPrivate={markPrivate} onMarkVisualPrivate={markVisualPrivate} />}
     <section className="conversation-viewport">
       <section className="conversation" aria-live="polite" aria-label="Nudge conversation">
         {state.status === "loading" && <AssistantBubble kind="loading">Inspecting this page locally…</AssistantBubble>}
@@ -176,7 +176,7 @@ function App() {
   </main>;
 }
 
-function PrivacySummary({ view, audit, openPanel, onOpenPanelChange, onMarkPrivate, onMarkVisualPrivate }: { view: ReadyView; audit: AuditEntry[]; openPanel: "redactions" | "controls" | null; onOpenPanelChange: (panel: "redactions" | "controls" | null) => void; onMarkPrivate: (id: string) => Promise<void>; onMarkVisualPrivate: () => Promise<void> }) {
+function PrivacySummary({ view, audit, serverUrl, onServerUrlChange, openPanel, onOpenPanelChange, onMarkPrivate, onMarkVisualPrivate }: { view: ReadyView; audit: AuditEntry[]; serverUrl: string; onServerUrlChange: (value: string) => void; openPanel: "redactions" | "controls" | null; onOpenPanelChange: (panel: "redactions" | "controls" | null) => void; onMarkPrivate: (id: string) => Promise<void>; onMarkVisualPrivate: () => Promise<void> }) {
   const privateFields = view.context.page.elements.filter((element) => element.role === "textbox" || element.role === "combobox").slice(0, 20);
   const redactions = view.context.page.redactions.count + view.visualRedactionCount;
   return <section className="privacy-summary" aria-label="Privacy controls">
@@ -197,6 +197,7 @@ function PrivacySummary({ view, audit, openPanel, onOpenPanelChange, onMarkPriva
         <p>Protected values stay in this browser.</p>
         <button className="mark-visual-area" type="button" onClick={() => void onMarkVisualPrivate()}>Mark an area on this page private</button>
         {privateFields.length > 0 ? <div className="element-list">{privateFields.map((element) => <button type="button" key={element.id} onClick={() => void onMarkPrivate(element.id)}>Mark “{element.name}” private</button>)}</div> : <p>No editable fields are available to mark private.</p>}
+        <details className="nested-details"><summary>Reasoning connection</summary><label>Reasoning server URL<input value={serverUrl} inputMode="url" onChange={(event) => onServerUrlChange(event.target.value)} /></label><p>The endpoint is saved locally when you send a task. HTTPS is required except for localhost development.</p></details>
         <details className="nested-details"><summary>Local audit ({audit.length})</summary>{audit.length > 0 ? <ul className="audit-list">{audit.slice(0, 8).map((entry) => <li key={entry.id}><strong>{entry.action.replaceAll("_", " ")}</strong><span>{entry.status === "completed" ? "Completed" : "Paused"} · {entry.outcome.replaceAll("_", " ")}</span></li>)}</ul> : <p>No actions have been recorded on this device.</p>}</details>
       </div>
     </details>

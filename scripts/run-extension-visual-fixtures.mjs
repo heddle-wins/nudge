@@ -134,11 +134,16 @@ try {
       if (!tab?.id) return { ok: false, error: "Fixture tab was not found." };
       return chrome.runtime.sendMessage({ type: "NUDGE_FIXTURE_CREATE_PROTECTED_VIEWPORT", tabId: tab.id });
     })()`;
+    const protectedViewportStarted = performance.now();
     const protectedResult = await extensionPage.send("Runtime.evaluate", { expression: protectedExpression, awaitPromise: true, returnByValue: true });
+    // This is the user-visible local capability duration: tab capture, DOM
+    // fusion, local visual scan, renderer, residue gate, and receipt hashing.
+    // It deliberately excludes network/server reasoning time.
+    const protectedViewportMs = Math.round((performance.now() - protectedViewportStarted) * 100) / 100;
     const protectedViewport = protectedResult.result.value;
     if (protectedViewport?.ok && !Array.isArray(protectedViewport.redactionPlan)) throw new Error(`Fixture protected viewport returned invalid geometry for ${fixture.id}`);
     const afterResidueMetrics = await sampleOffscreenMetrics();
-    runs.push({ id: fixture.id, surface: fixture.surface, expectedPolicy: fixture.expectedPolicy ?? "redact_then_evaluate", dimensions, extensionRoundTripMs, scan, residueScan, pixelProof, protectedViewport: protectedViewport?.ok ? { status: "ready", redactionPlan: protectedViewport.redactionPlan, visualRegionCount: protectedViewport.visualRegionCount } : { status: "withheld", reason: typeof protectedViewport?.error === "string" ? protectedViewport.error : "Nudge could not create the protected fixture viewport." }, localResources: { afterScan: afterScanMetrics, afterResidue: afterResidueMetrics, cpuTime: "unavailable_from_chrome_devtools", gpuUtilization: "unavailable_from_chrome_devtools" }, residueScope: "Detector re-scan is not independent. pixelProof separately checks final rendered pixels against fixture ground truth; it covers visual detector masks plus renderer padding and excludes DOM fusion." });
+    runs.push({ id: fixture.id, surface: fixture.surface, expectedPolicy: fixture.expectedPolicy ?? "redact_then_evaluate", dimensions, extensionRoundTripMs, scan, residueScan, pixelProof, protectedViewportMs, protectedViewport: protectedViewport?.ok ? { status: "ready", redactionPlan: protectedViewport.redactionPlan, visualRegionCount: protectedViewport.visualRegionCount } : { status: "withheld", reason: typeof protectedViewport?.error === "string" ? protectedViewport.error : "Nudge could not create the protected fixture viewport." }, localResources: { afterScan: afterScanMetrics, afterResidue: afterResidueMetrics, cpuTime: "unavailable_from_chrome_devtools", gpuUtilization: "unavailable_from_chrome_devtools" }, residueScope: "Detector re-scan is not independent. pixelProof separately checks final rendered pixels against fixture ground truth; it covers visual detector masks plus renderer padding and excludes DOM fusion." });
     page.close(); await devtools.send("Target.closeTarget", { targetId: target.targetId });
   }
   await mkdir(output, { recursive: true });

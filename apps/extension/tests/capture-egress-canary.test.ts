@@ -28,13 +28,16 @@ describe("captured-pixel egress canary", () => {
     expect(backgroundSource).toMatch(/chrome\.tabs\.onRemoved\.addListener\(\(tabId\) => protectedScreenshots\.delete\(tabId\)/);
   });
 
-  it("uses only a service-worker-owned receipt in the reasoning request", () => {
+  it("regenerates a service-worker-owned receipt and context immediately before the reasoning request", () => {
     const requestStart = backgroundSource.indexOf("async function requestNextAction");
     expect(requestStart).toBeGreaterThan(-1);
     const requestSource = backgroundSource.slice(requestStart);
     expect(requestSource).not.toContain("rawCapture");
     expect(requestSource).toContain("nextActionDraftSchema.parse(payload)");
-    expect(requestSource).toContain("protectedScreenshots.get(tabId)");
+    expect(requestSource).toContain("collectCurrentRawContext(tabId)");
+    expect(requestSource).toContain("createProtectedViewport(tabId, rawPage)");
+    expect(requestSource).toContain("createOutboundSafeContext(rawPage)");
+    expect(requestSource).toContain("screenshot: protectedViewport.screenshot");
     expect(requestSource).not.toContain("payload.screenshot");
     expect(requestSource).toContain("body: JSON.stringify(request)");
   });
@@ -45,5 +48,11 @@ describe("captured-pixel egress canary", () => {
     const proposalMessage = sidepanelSource.slice(proposalMessageStart, sidepanelSource.indexOf("if (!response?.ok)", proposalMessageStart));
     expect(proposalMessage).toContain("tabId: state.page.tabId");
     expect(proposalMessage).not.toContain("screenshot:");
+  });
+
+  it("shows the service worker's fresh receipt with the resulting proposal", () => {
+    expect(sidepanelSource).toContain("screenshot: protectedContext?.screenshot");
+    expect(sidepanelSource).toContain("Exact locally redacted page view sent with this proposal");
+    expect(sidepanelSource).toContain("Protected page view sent · receipt");
   });
 });

@@ -1,4 +1,4 @@
-import { createOutboundSafeContext, createPrivacyInspection } from "@nudge/privacy-core";
+import { createOutboundSafeContext, createPrivacyInspection, type RawPageContext } from "@nudge/privacy-core";
 import {
   executionRequestSchema,
   executionResultSchema,
@@ -60,6 +60,15 @@ async function inspectTab(tabId: number) {
         : "Nudge cannot inspect this page. Browser-internal pages are not supported."
     };
   }
+}
+
+async function collectCurrentRawContext(tabId: number): Promise<RawPageContext> {
+  const [injection] = await chrome.scripting.executeScript({
+    target: { tabId },
+    func: collectRawPageContext
+  });
+  if (!injection?.result) throw new Error("Nudge could not read this page.");
+  return injection.result;
 }
 
 // This receiver is compiled only by the controlled fixture build. It exercises
@@ -258,10 +267,24 @@ function reasoningEndpoint(serverUrl: string) {
 async function requestNextAction(payload: unknown, serverUrl: unknown, tabId: unknown) {
   const draft = nextActionDraftSchema.parse(payload);
   if (typeof tabId !== "number" || !Number.isInteger(tabId) || tabId < 0) throw new Error("Nudge requires the inspected browser tab before requesting a proposal.");
-  const protectedScreenshot = protectedScreenshots.get(tabId);
+  // The side panel is never an authority for page context or screenshots. Build
+  // both anew here, immediately before egress, so the preview, request body,
+  // and proposal all refer to the same locally inspected page state.
+  const rawPage = await collectCurrentRawContext(tabId);
+  const context = createOutboundSafeContext(rawPage);
+  const inspection = createPrivacyInspection(rawPage);
+  const protectedViewport = await createProtectedViewport(tabId, rawPage);
+  protectedScreenshots.set(tabId, { origin: context.page.urlOrigin, screenshot: protectedViewport.screenshot });
   const request = nextActionRequestSchema.parse({
-    ...draft,
-    ...(protectedScreenshot?.origin === draft.context.page.urlOrigin ? { screenshot: protectedScreenshot.screenshot } : {})
+    task: draft.task,
+    context,
+    redactionManifest: {
+      count: context.page.redactions.count,
+      types: [...new Set([...context.page.redactions.types, ...protectedViewport.visualRegions.map((region) => region.kind)])],
+      visualMaskCount: protectedViewport.visualRegions.length,
+      renderer: "local-canvas-dom-v1"
+    },
+    screenshot: protectedViewport.screenshot
   });
   if (typeof serverUrl !== "string") throw new Error("Set a reasoning server URL before requesting a proposal.");
   const response = await fetch(reasoningEndpoint(serverUrl), {
@@ -276,13 +299,23 @@ async function requestNextAction(payload: unknown, serverUrl: unknown, tabId: un
   }
   const result = nextActionResponseSchema.parse(await response.json());
   validateProposedAction(result, request);
-  return result;
+  return {
+    proposal: result,
+    protectedContext: {
+      context,
+      redactionDetails: inspection.redactionDetails,
+      visualRedactionCount: protectedViewport.visualRegions.length,
+      visualRedactionTypes: [...new Set(protectedViewport.visualRegions.map((region) => region.kind))] satisfies PiiKind[],
+      visualScan: protectedViewport.visualScan,
+      screenshot: protectedViewport.screenshot
+    }
+  };
 }
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message?.type !== "NUDGE_REQUEST_NEXT_ACTION" || typeof message.tabId !== "number") return;
   requestNextAction(message.payload, message.serverUrl, message.tabId).then(
-    (proposal) => sendResponse({ ok: true, proposal }),
+    ({ proposal, protectedContext }) => sendResponse({ ok: true, proposal, protectedContext }),
     (error) => sendResponse({ ok: false, error: error instanceof Error ? error.message : "Nudge could not get a safe action proposal." })
   );
   return true;

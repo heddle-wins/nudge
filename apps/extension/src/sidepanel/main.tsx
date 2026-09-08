@@ -18,7 +18,7 @@ type ViewState = { status: "idle" | "loading" } | UnsupportedView | ReadyView;
 type ConversationItem =
   | { id: string; role: "assistant"; kind: "text" | "loading" | "error"; text: string }
   | { id: string; role: "user"; kind: "text"; text: string }
-  | { id: string; role: "assistant"; kind: "proposal"; proposal: NextActionResponse };
+  | { id: string; role: "assistant"; kind: "proposal"; proposal: NextActionResponse; screenshot?: SafeScreenshot };
 type AuditEntry = { id: string; at: string; action: string; targetId?: string; status: ExecutionResult["status"]; outcome: ExecutionResult["outcome"] };
 
 const LOCAL_SERVER = "http://127.0.0.1:8000";
@@ -109,7 +109,30 @@ function App() {
       const response = await chrome.runtime.sendMessage({ type: "NUDGE_REQUEST_NEXT_ACTION", tabId: state.page.tabId, serverUrl: serverUrl.trim(), payload: { task, context: state.context, redactionManifest: { count: state.context.page.redactions.count, types: [...new Set([...state.context.page.redactions.types, ...state.visualRedactionTypes])], visualMaskCount: state.visualRedactionCount, renderer: "local-canvas-dom-v1" } } });
       if (!response?.ok) throw new Error(response?.error ?? "Nudge could not get a safe action proposal.");
       const proposal = response.proposal as NextActionResponse;
-      setConversation((items) => items.map((item) => item.id === loadingId ? { id: loadingId, role: "assistant", kind: "proposal", proposal } : item));
+      const protectedContext = response.protectedContext as Partial<ReadyView> | undefined;
+      // Show the actual new receipt returned by the service worker, rather than
+      // the earlier inspection preview. This is the exact image sent with this proposal.
+      if (protectedContext?.context && protectedContext.screenshot) {
+        setState((current) => current.status === "ready" && current.page.tabId === state.page.tabId
+          ? {
+              ...current,
+              context: protectedContext.context as SanitizedPageContext,
+              redactionDetails: Array.isArray(protectedContext.redactionDetails) ? protectedContext.redactionDetails as RedactionDetail[] : current.redactionDetails,
+              visualRedactionCount: typeof protectedContext.visualRedactionCount === "number" ? protectedContext.visualRedactionCount : current.visualRedactionCount,
+              visualRedactionTypes: Array.isArray(protectedContext.visualRedactionTypes) ? protectedContext.visualRedactionTypes as PiiKind[] : current.visualRedactionTypes,
+              visualScan: validVisualScan(protectedContext.visualScan) ?? current.visualScan,
+              screenshot: protectedContext.screenshot as SafeScreenshot,
+              viewportError: undefined
+            }
+          : current);
+      }
+      setConversation((items) => items.map((item) => item.id === loadingId ? {
+        id: loadingId,
+        role: "assistant",
+        kind: "proposal",
+        proposal,
+        screenshot: protectedContext?.screenshot as SafeScreenshot | undefined
+      } : item));
     } catch (error) {
       const message = error instanceof Error ? error.message : "Nudge could not get a safe action proposal.";
       setConversation((items) => items.map((item) => item.id === loadingId ? { id: loadingId, role: "assistant", kind: "error", text: message } : item));
@@ -132,7 +155,7 @@ function App() {
       <section className="conversation" aria-live="polite" aria-label="Nudge conversation">
         {state.status === "loading" && <AssistantBubble kind="loading">Inspecting this page locally…</AssistantBubble>}
         {state.status === "idle" && <AssistantBubble>Opening the active page’s local context…</AssistantBubble>}
-        {conversation.map((item) => item.kind === "proposal" ? <ProposalBubble key={item.id} proposal={item.proposal} onExecute={executeProposal} /> : item.role === "user" ? <div className="message user" key={item.id}>{item.text}</div> : <AssistantBubble key={item.id} kind={item.kind === "error" ? "error" : item.kind === "loading" ? "loading" : undefined}>{item.text}</AssistantBubble>)}
+        {conversation.map((item) => item.kind === "proposal" ? <ProposalBubble key={item.id} proposal={item.proposal} screenshot={item.screenshot} onExecute={executeProposal} /> : item.role === "user" ? <div className="message user" key={item.id}>{item.text}</div> : <AssistantBubble key={item.id} kind={item.kind === "error" ? "error" : item.kind === "loading" ? "loading" : undefined}>{item.text}</AssistantBubble>)}
       </section>
     </section>
     <form className="composer" onSubmit={(event) => void sendTask(event)}>
@@ -197,11 +220,11 @@ function PageContext({ view, serverUrl, onServerUrlChange, onMarkPrivate, audit 
 
 function AssistantBubble({ children, kind }: { children: React.ReactNode; kind?: "error" | "loading" }) { return <div className={`message assistant${kind ? ` ${kind}` : ""}`}><span className="assistant-mark">N</span><p>{children}</p></div>; }
 
-function ProposalBubble({ proposal, onExecute }: { proposal: NextActionResponse; onExecute: (proposal: NextActionResponse, localValue?: string) => Promise<ExecutionResult> }) {
+function ProposalBubble({ proposal, screenshot, onExecute }: { proposal: NextActionResponse; screenshot?: SafeScreenshot; onExecute: (proposal: NextActionResponse, localValue?: string) => Promise<ExecutionResult> }) {
   const [localValue, setLocalValue] = useState(""); const [status, setStatus] = useState<"idle" | "working" | "done" | "error">("idle"); const [result, setResult] = useState<ExecutionResult | null>(null);
   const needsLocalText = proposal.action.type === "type"; const target = proposal.action.targetId ? ` · ${proposal.action.targetId}` : "";
   async function confirm() { setStatus("working"); try { const next = await onExecute(proposal, needsLocalText ? localValue : undefined); setResult(next); setStatus("done"); } catch (error) { setResult({ status: "blocked", outcome: "unsupported_action", message: error instanceof Error ? error.message : "Nudge could not complete the action." }); setStatus("error"); } }
-  return <div className="proposal-bubble"><div className="proposal-label">Safe next step</div><strong>{proposal.action.type.replaceAll("_", " ")}{target}</strong><p>{proposal.rationale}</p><small>{Math.round(proposal.confidence * 100)}% confidence · Local confirmation required</small>
+  return <div className="proposal-bubble">{screenshot && <div className="proposal-receipt"><img className="protected-preview" src={screenshot.dataUrl} alt="Exact locally redacted page view sent with this proposal" /><small>Protected page view sent · receipt {screenshot.sha256.slice(0, 12)}…</small></div>}<div className="proposal-label">Safe next step</div><strong>{proposal.action.type.replaceAll("_", " ")}{target}</strong><p>{proposal.rationale}</p><small>{Math.round(proposal.confidence * 100)}% confidence · Local confirmation required</small>
     {needsLocalText && <label className="local-entry">Text to enter locally<input value={localValue} maxLength={500} autoComplete="off" placeholder="Enter it yourself" onChange={(event) => setLocalValue(event.target.value)} /><span>Never sent to the server or saved in the audit.</span></label>}
     <button type="button" className="confirm" disabled={status !== "idle" || (needsLocalText && !localValue.trim())} onClick={() => void confirm()}>{status === "working" ? "Re-checking page…" : needsLocalText ? "Confirm local text and enter" : "Confirm and execute"}</button>
     {result && <p className={`execution-result ${result.status === "completed" ? "success" : "error"}`}>{result.message}</p>}</div>;

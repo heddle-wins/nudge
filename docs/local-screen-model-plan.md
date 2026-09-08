@@ -75,6 +75,18 @@ only. It does not download source screenshots or write source OCR/text; use a
 controlled licensed dataset workspace to retrieve an approved candidate image
 when a reviewer needs to see it.
 
+For a bounded triage sample of a restrictive state, use for example:
+
+```bash
+npm run screen-state:fetch-review-queue -- \
+  --output /safe/local/nudge-mfa-candidates.jsonl \
+  --suggested-state mfa_or_captcha --count 20 --max-pages 10
+```
+
+The state filter reads up to 10 pages of metadata in memory and writes only
+matching candidate metadata. It is a reviewer-queue accelerator, never a
+source of labels.
+
 `scripts/build-screen-state-review-queue.mjs` turns a locally obtained
 ScreenParse JSONL projection into a review queue. It accepts only records with
 `id`, `url`, `texts`, `width`, and `height`; it never downloads images, calls a

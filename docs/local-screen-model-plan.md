@@ -90,3 +90,7 @@ records, hostname split leakage, missing reviewer/date/provenance/image hash,
 and absent taxonomy states. Its output contains aggregate counts only. The
 numeric minimum is a release decision, not evidence by itself; keep it modest
 only for pipeline smoke tests and raise it for the final held-out evaluation.
+
+Use the [screen-state human review protocol](./screen-state-review-protocol.md)
+for the exact label definitions, conflict precedence, privacy boundary, and
+two-pass review procedure.

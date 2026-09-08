@@ -63,7 +63,7 @@ This is fixture coverage, not a claim of production PII precision/recall. Run th
 | --- | --- | --- |
 | PII/redaction fixture coverage | `pnpm test` checks the labelled SevaSetu fake values never survive outbound serialization | Expand the labelled fixture set and report TP, FP, FN, precision, recall per PII class |
 | Safe action behavior | Executor tests cover safe click/type and four restricted paths | Run the walkthrough three times and record proposed, completed, and paused action counts |
-| Reasoning latency | Local mock baseline: one request returned HTTP 200 in 0.002738 s on the development machine; hosted latency is provider/network dependent | With the server running, execute `pnpm measure:api` five times and report median/p95 |
+| Reasoning latency | The local script makes five sanitized requests by default and reports median/p95; hosted latency is provider/network dependent | With the server running, execute `pnpm measure:api` and record the provider, model, host, run count, median, and p95 |
 | Extension resource use | Production build prints each compiled asset size | Record Chrome Task Manager CPU/memory during the five-minute walkthrough on the demo machine |
 
 Do not report a synthetic production accuracy, latency, or resource number. Capture the provider and hardware alongside every measured result.

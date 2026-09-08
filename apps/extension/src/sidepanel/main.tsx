@@ -103,7 +103,12 @@ function App() {
     const task = draft.trim();
     const loadingId = crypto.randomUUID();
     setDraft("");
-    setConversation((items) => [...items, { id: crypto.randomUUID(), role: "user", kind: "text", text: task }, { id: loadingId, role: "assistant", kind: "loading", text: "Reviewing the protected page context…" }]);
+    setConversation((items) => [...items, { id: crypto.randomUUID(), role: "user", kind: "text", text: task }, { id: loadingId, role: "assistant", kind: "loading", text: "Preparing a fresh protected view locally…" }]);
+    const progressTimer = window.setTimeout(() => {
+      setConversation((items) => items.map((item) => item.id === loadingId && item.kind === "loading"
+        ? { ...item, text: "Redacting and checking the current view before it leaves this browser…" }
+        : item));
+    }, 700);
     try {
       await chrome.storage.local.set({ nudgeReasoningServerUrl: serverUrl.trim() });
       const response = await chrome.runtime.sendMessage({ type: "NUDGE_REQUEST_NEXT_ACTION", tabId: state.page.tabId, serverUrl: serverUrl.trim(), payload: { task } });
@@ -136,6 +141,8 @@ function App() {
     } catch (error) {
       const message = error instanceof Error ? error.message : "Nudge could not get a safe action proposal.";
       setConversation((items) => items.map((item) => item.id === loadingId ? { id: loadingId, role: "assistant", kind: "error", text: message } : item));
+    } finally {
+      window.clearTimeout(progressTimer);
     }
   }
 

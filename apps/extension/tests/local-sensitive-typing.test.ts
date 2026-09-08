@@ -17,6 +17,10 @@ describe("local sensitive typing boundary", () => {
     expect(sendTask).toContain('type: "NUDGE_REQUEST_NEXT_ACTION"');
     expect(sendTask).not.toContain("localValue");
     expect(sidePanel).toMatch(/type: "NUDGE_EXECUTE_ACTION"[\s\S]{0,220}localValue/);
-    expect(background).toMatch(/function requestNextAction[\s\S]{0,900}body: JSON\.stringify\(request\)/);
+    const requestStart = background.indexOf("async function requestNextAction");
+    const requestEnd = background.indexOf('chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {\n  if (message?.type !== "NUDGE_REQUEST_NEXT_ACTION"', requestStart);
+    const requestSource = background.slice(requestStart, requestEnd);
+    expect(requestSource).toContain("body: JSON.stringify(request)");
+    expect(requestSource).not.toContain("localValue");
   });
 });

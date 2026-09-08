@@ -50,6 +50,20 @@ function renderedMasks(fixtureRun) {
     return { ...region, x, y, width: Math.max(0, right - x), height: Math.max(0, bottom - y) };
   });
 }
+function renderedProtectedViewportMasks(fixtureRun) {
+  const plan = fixtureRun.protectedViewport?.redactionPlan;
+  if (fixtureRun.protectedViewport?.status !== "ready" || !Array.isArray(plan)) return undefined;
+  const padding = 4;
+  return plan.map((region) => {
+    // Fixture viewports are captured at their declared dimensions, so DOM
+    // geometry maps 1:1 here; image-coordinate visual boxes already are 1:1.
+    const x = Math.max(0, region.x - padding);
+    const y = Math.max(0, region.y - padding);
+    const right = Math.min(fixtureRun.dimensions.width, region.x + region.width + padding);
+    const bottom = Math.min(fixtureRun.dimensions.height, region.y + region.height + padding);
+    return { ...region, x, y, width: Math.max(0, right - x), height: Math.max(0, bottom - y) };
+  });
+}
 const fixtures = run.fixtures.map((fixtureRun) => {
   const fixture = fixtureById.get(fixtureRun.id);
   if (!fixture) throw new Error(`Run contains unknown fixture: ${fixtureRun.id}`);
@@ -70,6 +84,17 @@ const finalRenderer = {
   scope: "Exact image-coordinate expansion used by the production canvas renderer for visual detector masks. It excludes DOM-derived masks and does not prove post-redaction OCR safety.",
   totals: aggregate(renderedFixtures),
   fixtures: renderedFixtures
+};
+const protectedViewportFixtures = run.fixtures.flatMap((fixtureRun) => {
+  const fixture = fixtureById.get(fixtureRun.id);
+  const masks = renderedProtectedViewportMasks(fixtureRun);
+  return fixture && masks ? [score(fixtureRun, fixture, masks)] : [];
+});
+const protectedViewport = {
+  readyFixtureCount: protectedViewportFixtures.length,
+  withheldFixtures: run.fixtures.filter((fixture) => fixture.protectedViewport?.status === "withheld").map((fixture) => ({ id: fixture.id, reason: fixture.protectedViewport.reason })),
+  scope: "Actual protected-viewport capability geometry for fixtures the policy permits to be captured. Withheld fixtures are a fail-closed policy result, not redaction failures. DOM geometry is valid here because the fixture runner enforces matching viewport and image dimensions.",
+  finalFusedMetrics: { totals: aggregate(protectedViewportFixtures), fixtures: protectedViewportFixtures }
 };
 function percentile(values, percentileValue) {
   const sorted = [...values].filter(Number.isFinite).sort((left, right) => left - right);
@@ -99,6 +124,6 @@ const resources = {
   gpuUtilization: "unavailable_from_chrome_devtools",
   scope: "Heap values are DevTools snapshots taken after local scan and residue scan, not a guaranteed process peak. CPU/GPU utilization is intentionally not inferred from wall-clock latency."
 };
-const report = { schemaVersion: 1, sourceRun: relative(root, input), environment: run.environment ?? null, measurementScope: "Detector boxes only; excludes DOM fusion and post-redaction OCR. Coverage is labelled rectangle coverage, not proof of leaked text or final screenshot safety.", protectedCoverageThreshold: 0.99, timing, ocr, resources, totals, fixtures, finalRenderer };
+const report = { schemaVersion: 1, sourceRun: relative(root, input), environment: run.environment ?? null, measurementScope: "Detector boxes only; excludes post-redaction OCR. Coverage is labelled rectangle coverage, not proof of leaked text or final screenshot safety.", protectedCoverageThreshold: 0.99, timing, ocr, resources, totals, fixtures, finalRenderer, protectedViewport };
 await writeFile(output, `${JSON.stringify(report, null, 2)}\n`);
 process.stdout.write(`Wrote metrics for ${fixtures.length} fixtures to ${output}\n`);

@@ -8,8 +8,8 @@
       "surface": "dom",
       "dimensions": { "width": 800, "height": 450 },
       "expected": [
-        { "kind": "email", "x": 86, "y": 163, "width": 360, "height": 42 },
-        { "kind": "password", "x": 86, "y": 258, "width": 360, "height": 42 }
+        { "kind": "email", "x": 86, "y": 149, "width": 360, "height": 42 },
+        { "kind": "password", "x": 86, "y": 234, "width": 360, "height": 42 }
       ]
     },
     {

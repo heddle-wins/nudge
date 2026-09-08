@@ -66,6 +66,15 @@ if (import.meta.env.MODE === "fixture") {
     );
     return true;
   });
+
+  chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+    if (message?.type !== "NUDGE_FIXTURE_CREATE_PROTECTED_VIEWPORT" || typeof message.tabId !== "number") return;
+    createProtectedViewport(message.tabId).then(
+      (result) => sendResponse({ ok: true, redactionPlan: result.redactionPlan, visualRegionCount: result.visualRegions.length }),
+      (error) => sendResponse({ ok: false, error: error instanceof Error ? error.message : "Nudge could not create the protected fixture viewport." })
+    );
+    return true;
+  });
 }
 
 async function markPrivate(tabId: number, elementId: string) {

@@ -25,11 +25,12 @@ export async function createProtectedViewport(tabId: number) {
   const rawCapture = await chrome.tabs.captureVisibleTab(target.windowId, { format: "png" });
   const visualScan = await detectVisualPrivacyOffscreen(rawCapture);
   const visualRegions = visualScan.regions.map((region) => ({ ...region, coordinateSpace: "image" as const }));
+  const redactionPlan = [...inspection.visualRedactions, ...visualRegions];
   const viewport = rawPage.viewport ?? { width: target.width ?? 1, height: target.height ?? 1 };
   const [rendered] = await chrome.scripting.executeScript({
     target: { tabId },
     func: renderRedactedViewport,
-    args: [rawCapture, [...inspection.visualRedactions, ...visualRegions], viewport]
+    args: [rawCapture, redactionPlan, viewport]
   });
   if (typeof rendered?.result !== "string") throw new Error("Nudge could not render the protected viewport.");
 
@@ -38,6 +39,9 @@ export async function createProtectedViewport(tabId: number) {
   return {
     screenshot: await createSafeScreenshot(rendered.result, viewport),
     visualRegions,
+    // Geometry stays local in production; the fixture-only receiver below may
+    // inspect it without receiving image pixels.
+    redactionPlan,
     visualScan: {
       scanMs: visualScan.scanMs,
       modelLoadMs: visualScan.modelLoadMs,

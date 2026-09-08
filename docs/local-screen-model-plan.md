@@ -121,6 +121,18 @@ and absent taxonomy states. Its output contains aggregate counts only. The
 numeric minimum is a release decision, not evidence by itself; keep it modest
 only for pipeline smoke tests and raise it for the final held-out evaluation.
 
+After inference, append a local `predictedState` to the approved **test**-split
+metadata only, then generate the release confusion matrix with:
+
+```bash
+npm run screen-state:evaluate-release -- \
+  --input /safe/local/nudge-screen-state-held-out-predictions.jsonl
+```
+
+This command rejects unreviewed records, non-test records, duplicate source
+IDs, invalid states, and held-out sets missing any state. Its JSON output is
+aggregate-only: accuracy, macro F1, confusion matrix, and per-state metrics.
+
 Use the [screen-state human review protocol](./screen-state-review-protocol.md)
 for the exact label definitions, conflict precedence, privacy boundary, and
 two-pass review procedure.

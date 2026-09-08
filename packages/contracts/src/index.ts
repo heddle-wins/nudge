@@ -11,7 +11,9 @@ export const piiKindSchema = z.enum([
   "address",
   "date_of_birth",
   "token",
-  "user_marked"
+  "user_marked",
+  /** Locally masked raster or generated visual surface with no inspectable text. */
+  "visual_content"
 ]);
 
 export type PiiKind = z.infer<typeof piiKindSchema>;

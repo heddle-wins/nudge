@@ -227,7 +227,7 @@ function ProposalBubble({ proposal, screenshot, onExecute }: { proposal: NextAct
     {result && <p className={`execution-result ${result.status === "completed" ? "success" : "error"}`}>{result.message}</p>}</div>;
 }
 
-function piiLabel(kind: RedactionDetail["kind"]): string { return ({ face: "Face", password: "Password", email: "Email", phone: "Phone", government_id: "Government ID", payment: "Payment detail", account_number: "Account number", address: "Address", date_of_birth: "Date of birth", token: "Token", user_marked: "Marked private" } as const)[kind]; }
+function piiLabel(kind: RedactionDetail["kind"]): string { return ({ face: "Face", password: "Password", email: "Email", phone: "Phone", government_id: "Government ID", payment: "Payment detail", account_number: "Account number", address: "Address", date_of_birth: "Date of birth", token: "Token", user_marked: "Marked private", visual_content: "Visual content" } as const)[kind]; }
 function validVisualScan(value: unknown): ReadyView["visualScan"] {
   if (!value || typeof value !== "object") return undefined;
   const scan = value as { scanMs?: unknown; modelLoadMs?: unknown; residueScanMs?: unknown; backends?: unknown };

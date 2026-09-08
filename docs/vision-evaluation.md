@@ -39,6 +39,10 @@ For each fixture, two checks are intentionally kept separate:
 2. **Final-pixel proof** checks every labelled fixture pixel in the actual
    rendered PNG against the fixed opaque redaction colour. It uses held-out
    fixture geometry, not a model, and returns only aggregate pixel counts.
+3. **Protected-receipt proof** runs when a fixture can create a service-worker
+   receipt. It checks that exact already-redacted receipt in extension memory
+   after DOM fusion, visual masking, residue scanning, and hashing; only its
+   aggregate counts are retained.
 
 The test-only helpers are absent from a production build. Verify that boundary
 after a production build:
@@ -74,18 +78,22 @@ it rather than treating it as committed evidence.
 | Adversarial Devanagari spaced ID | 8,762 / 16,698 | OCR found text regions but did not recognize/mask the identifier. |
 
 The initial run's production protected-viewport capability was eligible only
-for the DOM credential fixture: it fused the two semantic DOM masks with the
-visual mask and covered **2/2 credential regions with zero residual pixels**.
+for the DOM credential fixture and fused the two semantic DOM masks with the
+visual mask. A later exact-receipt pixel check reported 276 residual pixels
+inside its broad fixture rectangles; the browser capture's vertical coordinate
+space does not exactly align with that standalone fixture geometry. Treat the
+DOM case as a control-flow/egress check, not a zero-pixel release claim, until
+its coordinate fixture is recalibrated.
 
 After adding opaque-surface masking, the controlled follow-up run at
 `artifacts/extension-visual-fixtures/2026-09-08T17-10-34.822Z/run.json` showed
 the active-DOM synthetic portrait as eligible too: its complete 380×380 image
 region appeared in the protected viewport's local redaction plan as
-`visual_content`, and final-pixel proof found **0 / 36,900** residual labelled
-face pixels. This is evidence that an inspectable DOM profile image is masked
-even when face detection is not the deciding control. Screenshot-only fixture
-surfaces that do not correspond to an inspectable active page remain withheld;
-that is expected and remains fail-closed.
+`visual_content`, and the exact protected-receipt proof found **0 / 36,900**
+residual labelled face pixels. This is evidence that an inspectable DOM profile
+image is masked even when face detection is not the deciding control.
+Screenshot-only fixture surfaces that do not correspond to an inspectable
+active page remain withheld; that is expected and remains fail-closed.
 
 ## Protected-viewport duration
 
